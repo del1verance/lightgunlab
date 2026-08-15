@@ -22,10 +22,11 @@ ULightgunSubsystem* ULightgunStartupPanel::GetLightgun() const
 	return GetGameInstance() ? GetGameInstance()->GetSubsystem<ULightgunSubsystem>() : nullptr;
 }
 
-void ULightgunStartupPanel::NativeConstruct()
+void ULightgunStartupPanel::NativeOnInitialized()
 {
-	Super::NativeConstruct();
+	Super::NativeOnInitialized();
 
+	// Tree must exist before RebuildWidget/TakeWidget - NativeConstruct is too late.
 	UBorder* Scrim = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
 	Scrim->SetBrushColor(FLinearColor(0.f, 0.f, 0.f, 0.65f));
 	Scrim->SetHorizontalAlignment(HAlign_Center);

@@ -22,7 +22,7 @@ class LIGHTGUNLAB_API ULightgunStartupPanel : public UUserWidget
 	GENERATED_BODY()
 
 protected:
-	virtual void NativeConstruct() override;
+	virtual void NativeOnInitialized() override;
 
 	UFUNCTION()
 	void OnConfirmClicked();

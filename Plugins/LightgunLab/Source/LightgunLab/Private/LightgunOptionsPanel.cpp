@@ -25,9 +25,9 @@ ULightgunSubsystem* ULightgunOptionsPanel::GetLightgun() const
 	return GetGameInstance() ? GetGameInstance()->GetSubsystem<ULightgunSubsystem>() : nullptr;
 }
 
-void ULightgunOptionsPanel::NativeConstruct()
+void ULightgunOptionsPanel::NativeOnInitialized()
 {
-	Super::NativeConstruct();
+	Super::NativeOnInitialized();
 	const ULightgunSettings* Settings = GetDefault<ULightgunSettings>();
 
 	UBorder* Scrim = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());

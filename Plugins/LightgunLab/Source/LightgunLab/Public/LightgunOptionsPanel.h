@@ -23,7 +23,7 @@ class LIGHTGUNLAB_API ULightgunOptionsPanel : public UUserWidget
 	GENERATED_BODY()
 
 protected:
-	virtual void NativeConstruct() override;
+	virtual void NativeOnInitialized() override;
 
 	UFUNCTION() void OnGunSelectionChanged(FString SelectedItem, ESelectInfo::Type SelectionType);
 	UFUNCTION() void OnModeSelectionChanged(FString SelectedItem, ESelectInfo::Type SelectionType);

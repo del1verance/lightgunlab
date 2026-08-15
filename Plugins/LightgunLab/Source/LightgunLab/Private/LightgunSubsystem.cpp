@@ -15,6 +15,21 @@
 #include "Blueprint/UserWidget.h"
 #include "Containers/Ticker.h"
 #include "Misc/App.h"
+#include "GameFramework/PlayerController.h"
+
+namespace
+{
+	void EnableUiInteraction(UGameInstance* GameInstance)
+	{
+		if (APlayerController* PC = GameInstance ? GameInstance->GetFirstLocalPlayerController() : nullptr)
+		{
+			PC->bShowMouseCursor = true;
+			FInputModeGameAndUI InputMode;
+			InputMode.SetHideCursorDuringCapture(false);
+			PC->SetInputMode(InputMode);
+		}
+	}
+}
 
 // Defined here so TUniquePtr members see complete backend/server types.
 ULightgunSubsystem::~ULightgunSubsystem() = default;
@@ -370,6 +385,7 @@ void ULightgunSubsystem::ShowStartupPanel()
 	if (StartupPanel && !StartupPanel->IsInViewport())
 	{
 		StartupPanel->AddToViewport(9500);
+		EnableUiInteraction(GetGameInstance());
 	}
 }
 
@@ -386,6 +402,7 @@ void ULightgunSubsystem::ShowOptionsPanel()
 	if (OptionsPanel && !OptionsPanel->IsInViewport())
 	{
 		OptionsPanel->AddToViewport(9500);
+		EnableUiInteraction(GetGameInstance());
 	}
 }
 
