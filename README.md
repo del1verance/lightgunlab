@@ -60,6 +60,10 @@ Compiles clean; protocols implemented verbatim from vendor documentation. **Sind
 
 Licensed under the [MIT License](LICENSE).
 
+## Known issues
+
+- **Sinden recoil server can wedge.** The software's TCP recoil server stops servicing all clients (new connections sit unanswered in the OS backlog) if it ever receives merged/malformed messages — e.g. from a tool sending commands faster than ~150ms apart. Recovery: restart the Sinden software. This plugin defends itself (single connection per session, paced commands, `J1` recoil-enable on entry), but other tools sharing the server can still trip it.
+
 ## Protocol credits
 
 Sinden Lightgun software package (RecoilTcpServerReadme.txt, ExternalRecoilOutputs.txt) · GUN4IR official User Guide v1.2 by JB · Retro Shooter RS3 Reaper manual · [OpenFIRE firmware](https://github.com/TeamOpenFIRE/OpenFIRE-Firmware) · [Blamcon serial commands](https://blamcon.com/get-started-with-blamcon/serial-commands/) · [MAME](https://github.com/mamedev/mame) network/win32 output modules · MAME Interop SDK

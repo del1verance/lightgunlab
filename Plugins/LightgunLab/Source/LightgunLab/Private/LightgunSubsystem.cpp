@@ -114,6 +114,12 @@ bool ULightgunSubsystem::SelectGunByIndex(int32 Index)
 	{
 		return false;
 	}
+	// Reselecting the active gun must not churn the backend: tear-down/reconnect
+	// cycles can wedge single-client recoil servers (Sinden, bench-confirmed).
+	if (Index == ActiveGunIndex && Backend.IsValid() && Backend->IsHealthy())
+	{
+		return true;
+	}
 	const FDetectedLightgun& Gun = DetectedGuns[Index];
 	if (Gun.Model == ELightgunModel::UnknownSerial || Gun.Model == ELightgunModel::None)
 	{
