@@ -31,26 +31,41 @@ void ULightgunSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	}
 	StartOutputServersIfEnabled();
 
-	PostLoadMapHandle = FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(this, &ULightgunSubsystem::OnPostLoadMap);
+	// PostLoadMapWithWorld never fires for PIE worlds (they're duplicated, not
+	// loaded), so poll until a game world has begun play and has a viewport.
+	if (Settings->bShowStartupPanel)
+	{
+		TWeakObjectPtr<ULightgunSubsystem> WeakThis(this);
+		StartupPollHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([WeakThis](float)
+		{
+			ULightgunSubsystem* Self = WeakThis.Get();
+			if (!Self)
+			{
+				return false;
+			}
+			UGameInstance* GameInstance = Self->GetGameInstance();
+			UWorld* World = GameInstance ? GameInstance->GetWorld() : nullptr;
+			if (World && World->IsGameWorld() && World->HasBegunPlay() && GameInstance->GetGameViewportClient())
+			{
+				if (!Self->bStartupPanelShown)
+				{
+					Self->bStartupPanelShown = true;
+					Self->ShowStartupPanel();
+				}
+				return false;
+			}
+			return true;
+		}), 0.25f);
+	}
 }
 
 void ULightgunSubsystem::Deinitialize()
 {
-	FCoreUObjectDelegates::PostLoadMapWithWorld.Remove(PostLoadMapHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(StartupPollHandle);
 	EndGameControl();
 	TeardownBackend();
 	StopOutputServers();
 	Super::Deinitialize();
-}
-
-void ULightgunSubsystem::OnPostLoadMap(UWorld* World)
-{
-	const ULightgunSettings* Settings = GetDefault<ULightgunSettings>();
-	if (Settings->bShowStartupPanel && !bStartupPanelShown && World && World->IsGameWorld())
-	{
-		bStartupPanelShown = true;
-		ShowStartupPanel();
-	}
 }
 
 void ULightgunSubsystem::ScanForLightguns()

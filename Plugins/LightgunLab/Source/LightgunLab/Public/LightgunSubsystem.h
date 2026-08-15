@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
+#include "Containers/Ticker.h"
 #include "LightgunTypes.h"
 #include "LightgunSubsystem.generated.h"
 
@@ -137,7 +138,6 @@ public:
 	FOnLightgunStatusChanged OnStatusChanged;
 
 private:
-	void OnPostLoadMap(class UWorld* World);
 	void EmitOutput(const FString& ShortName, int32 Value);
 	void EmitOutputPulse(const FString& ShortName);
 	void StartOutputServersIfEnabled();
@@ -165,5 +165,5 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<ULightgunOptionsPanel> OptionsPanel;
 
-	FDelegateHandle PostLoadMapHandle;
+	FTSTicker::FDelegateHandle StartupPollHandle;
 };
