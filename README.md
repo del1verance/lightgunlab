@@ -56,7 +56,7 @@ Players with an existing rig point their `lightgunlab.ini` at the game and every
 
 ## Status — v0.1
 
-Compiles clean; protocols implemented verbatim from vendor documentation. **Sinden: fully validated end-to-end in engine on real hardware** (2026-08-15: USB detection, startup picker, control seizure, paced TCP recoil, first-shot latency, empty-chamber soft fire, lifecycle handback — all bench-proven, with the pitfalls that surfaced documented under Known issues). GUN4IR bench test is next; RS3/OpenFIRE/Blamcon backends built to spec and awaiting community confirmation. Known open items: RS3 VID/PID confirmation, OpenFIRE `FDA` value formatting, live MAMEHooker 5.1 window-message validation.
+Compiles clean; protocols implemented verbatim from vendor documentation. **Sinden and GUN4IR: fully validated end-to-end in engine on real hardware** (2026-08-15). Both guns: USB detection → startup picker → game control seizure (gun's own trigger recoil correctly silenced) → game-commanded recoil on the first shot → clean handback. Sinden additionally: paced TCP, empty-chamber soft fire, and the V2.08b pitfalls documented under Known issues. GUN4IR note: bench gun enumerated as PID `8046` (community docs only list `8042`/`8043`), so detection accepts the whole `804x` block and settings expose user ID overrides. RS3/OpenFIRE/Blamcon backends built to spec and awaiting community confirmation. Known open items: RS3 VID/PID confirmation, GUN4IR firmware↔PID mapping, OpenFIRE `FDA` value formatting, live MAMEHooker 5.1 window-message validation.
 
 Licensed under the [MIT License](LICENSE).
 
