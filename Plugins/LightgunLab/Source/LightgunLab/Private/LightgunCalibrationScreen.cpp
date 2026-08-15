@@ -152,26 +152,33 @@ void ULightgunCalibrationScreen::NativeOnInitialized()
 	ButtonSlot->SetVerticalAlignment(VAlign_Bottom);
 	ButtonSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 56.f));
 
-	UButton* BackButton = MakePanelButton(WidgetTree, TEXT("  Back to gun select  "));
+	BackButton = MakePanelButton(WidgetTree, TEXT("  Back to gun select  "));
 	BackButton->OnClicked.AddDynamic(this, &ULightgunCalibrationScreen::OnBackClicked);
 	BackButton->SetCursor(EMouseCursor::None);
 	Buttons->AddChildToHorizontalBox(BackButton);
 
-	UButton* CrosshairButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
+	CrosshairToggleButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
 	CrosshairButtonLabel = MakePanelText(WidgetTree, TEXT("  Crosshair: ON  "), 12, true, FLinearColor(0.05f, 0.05f, 0.06f));
-	CrosshairButton->AddChild(CrosshairButtonLabel);
-	CrosshairButton->OnClicked.AddDynamic(this, &ULightgunCalibrationScreen::OnCrosshairToggleClicked);
-	CrosshairButton->SetCursor(EMouseCursor::None);
-	UHorizontalBoxSlot* CrosshairSlot = Buttons->AddChildToHorizontalBox(CrosshairButton);
+	CrosshairToggleButton->AddChild(CrosshairButtonLabel);
+	CrosshairToggleButton->OnClicked.AddDynamic(this, &ULightgunCalibrationScreen::OnCrosshairToggleClicked);
+	CrosshairToggleButton->SetCursor(EMouseCursor::None);
+	UHorizontalBoxSlot* CrosshairSlot = Buttons->AddChildToHorizontalBox(CrosshairToggleButton);
 	CrosshairSlot->SetPadding(FMargin(12.f, 0.f, 0.f, 0.f));
 
 	if (bTwoPlayerMode)
 	{
-		UButton* SwapButton = MakePanelButton(WidgetTree, TEXT("  Swap P1 <-> P2  "));
+		SwapButton = MakePanelButton(WidgetTree, TEXT("  Swap P1 <-> P2  "));
 		SwapButton->OnClicked.AddDynamic(this, &ULightgunCalibrationScreen::OnSwapClicked);
 		SwapButton->SetCursor(EMouseCursor::None);
 		UHorizontalBoxSlot* SwapSlot = Buttons->AddChildToHorizontalBox(SwapButton);
 		SwapSlot->SetPadding(FMargin(12.f, 0.f, 0.f, 0.f));
+
+		// In 2P the buttons are pressed by SHOOTING them (per-gun raw aim decides,
+		// so the merged cursor can never misroute or double-press). Take them out
+		// of Slate hit-testing entirely - the raw path is the only way in.
+		BackButton->SetVisibility(ESlateVisibility::HitTestInvisible);
+		CrosshairToggleButton->SetVisibility(ESlateVisibility::HitTestInvisible);
+		SwapButton->SetVisibility(ESlateVisibility::HitTestInvisible);
 	}
 }
 
@@ -321,6 +328,12 @@ void ULightgunCalibrationScreen::HandleRawTrigger(int32 PlayerIndex, FVector2f D
 	PlayerCrosshairPos[PlayerIndex] = Local;
 	bPlayerHasAim[PlayerIndex] = true;
 
+	// UI first: shooting a button presses it (and costs no ammo).
+	if (TryShootButton(DesktopPos, PlayerIndex))
+	{
+		return;
+	}
+
 	// Corner detection runs on the per-device position, so one gun's offscreen
 	// snap can never reload the other player. Before the first layout the cached
 	// geometry is zero-sized and every point would look like a corner - fire instead.
@@ -344,6 +357,37 @@ void ULightgunCalibrationScreen::HandleRawReload(int32 PlayerIndex, const FStrin
 	{
 		DoReloadForPlayer(PlayerIndex, Reason);
 	}
+}
+
+bool ULightgunCalibrationScreen::TryShootButton(const FVector2f& DesktopPos, int32 PlayerIndex)
+{
+	struct FShootable
+	{
+		UButton* Button;
+		void (ULightgunCalibrationScreen::*Handler)();
+	};
+	const FShootable Shootables[] = {
+		{ BackButton, &ULightgunCalibrationScreen::OnBackClicked },
+		{ CrosshairToggleButton, &ULightgunCalibrationScreen::OnCrosshairToggleClicked },
+		{ SwapButton, &ULightgunCalibrationScreen::OnSwapClicked },
+	};
+	const FVector2D Absolute(DesktopPos.X, DesktopPos.Y);
+	for (const FShootable& Shootable : Shootables)
+	{
+		if (Shootable.Button && Shootable.Button->GetIsEnabled() &&
+			Shootable.Button->GetCachedGeometry().IsUnderLocation(Absolute))
+		{
+			// A ring in the shooter's color = visible "who pressed it" feedback.
+			FHitMarker Marker;
+			Marker.Pos = DesktopToLocal(DesktopPos);
+			Marker.Time = FPlatformTime::Seconds();
+			Marker.PlayerIndex = PlayerIndex;
+			HitMarkers.Add(Marker);
+			(this->*(Shootable.Handler))();
+			return true;
+		}
+	}
+	return false;
 }
 
 void ULightgunCalibrationScreen::HandleTriggerPullForPlayer(int32 PlayerIndex, const FVector2f& LocalPos)

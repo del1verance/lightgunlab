@@ -64,6 +64,8 @@ private:
 	void DoReloadForPlayer(int32 PlayerIndex, const FString& Reason);
 	void RefreshCounterTextForPlayer(int32 PlayerIndex);
 	void RefreshRouterInfo();
+	/** 2P: a shot landing on a range button presses it. True if consumed by UI. */
+	bool TryShootButton(const FVector2f& DesktopPos, int32 PlayerIndex);
 	FVector2f DesktopToLocal(const FVector2f& DesktopPos) const;
 	FLinearColor GetPlayerColor(int32 PlayerIndex) const;
 
@@ -71,6 +73,10 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> CounterText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> CrosshairButtonLabel;
 	UPROPERTY(Transient) TObjectPtr<ULightgunWeapon> Weapon;
+
+	UPROPERTY(Transient) TObjectPtr<class UButton> BackButton;
+	UPROPERTY(Transient) TObjectPtr<class UButton> CrosshairToggleButton;
+	UPROPERTY(Transient) TObjectPtr<class UButton> SwapButton;
 
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> PlayerStatusText[2];
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> PlayerCounterText[2];

@@ -39,15 +39,11 @@ bool ULightgunWeapon::TryFire()
 
 void ULightgunWeapon::Reload()
 {
+	// No gun feedback here on purpose: recoil only ever means a live round.
 	Ammo = MagazineSize;
 	if (Subsystem)
 	{
 		Subsystem->SetAmmoForPlayer(PlayerIndex, Ammo);
-		// Sinden's vendor-suggested reload feel: a quick double pulse.
-		if (Subsystem->GetActiveGunForPlayer(PlayerIndex).Model == ELightgunModel::Sinden)
-		{
-			Subsystem->PlayGunEffectForPlayer(PlayerIndex, TEXT("T2170"));
-		}
 	}
 	OnAmmoChanged.Broadcast(Ammo);
 	OnReloaded.Broadcast();
