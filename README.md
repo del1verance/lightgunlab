@@ -58,7 +58,7 @@ Players with an existing rig point their `lightgunlab.ini` at the game and every
 
 Compiles clean; protocols implemented verbatim from vendor documentation. **Not yet hardware-validated** — bench testing on real GUN4IR and Sinden hardware is in progress; RS3/OpenFIRE/Blamcon backends built to spec and awaiting community confirmation. Known open items: RS3 VID/PID confirmation, OpenFIRE `FDA` value formatting, live MAMEHooker 5.1 window-message validation.
 
-No license chosen yet — all rights reserved until one is picked.
+Licensed under the [MIT License](LICENSE).
 
 ## Protocol credits
 
