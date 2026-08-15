@@ -9,6 +9,7 @@
 #include "SindenBorderWidget.h"
 #include "LightgunStartupPanel.h"
 #include "LightgunOptionsPanel.h"
+#include "LightgunCalibrationScreen.h"
 
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
@@ -351,7 +352,8 @@ void ULightgunSubsystem::SetBorderVisible(bool bVisible)
 		{
 			const ULightgunSettings* Settings = GetDefault<ULightgunSettings>();
 			BorderWidget->SetPercents(Settings->BorderWhitePercent, Settings->BorderBlackPercent);
-			BorderWidget->AddToViewport(9000);
+			// Topmost: the Sinden tracking frame must never sit under a panel scrim.
+			BorderWidget->AddToViewport(9900);
 		}
 	}
 	else if (BorderWidget && BorderWidget->IsInViewport())
@@ -413,6 +415,29 @@ void ULightgunSubsystem::ShowOptionsPanel()
 	{
 		OptionsPanel->AddToViewport(9500);
 		EnableUiInteraction(GetGameInstance());
+	}
+}
+
+void ULightgunSubsystem::ShowCalibrationScreen()
+{
+	if (!FApp::CanEverRender())
+	{
+		return;
+	}
+	if (!CalibrationScreen)
+	{
+		CalibrationScreen = CreateWidget<ULightgunCalibrationScreen>(GetGameInstance(), ULightgunCalibrationScreen::StaticClass());
+	}
+	if (CalibrationScreen && !CalibrationScreen->IsInViewport())
+	{
+		CalibrationScreen->AddToViewport(9000);
+		if (APlayerController* PC = GetGameInstance() ? GetGameInstance()->GetFirstLocalPlayerController() : nullptr)
+		{
+			FInputModeGameAndUI InputMode;
+			InputMode.SetHideCursorDuringCapture(false);
+			PC->SetInputMode(InputMode);
+			PC->bShowMouseCursor = false; // the range draws its own crosshair
+		}
 	}
 }
 

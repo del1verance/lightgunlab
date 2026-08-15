@@ -146,6 +146,7 @@ void ULightgunStartupPanel::OnConfirmClicked()
 		ApplyComboSelection();
 		Lightgun->BeginGameControl();
 		RemoveFromParent();
+		Lightgun->ShowCalibrationScreen();
 	}
 }
 

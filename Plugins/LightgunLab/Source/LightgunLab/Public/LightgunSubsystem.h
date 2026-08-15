@@ -14,6 +14,7 @@ class FMameWindowBroadcaster;
 class ULightgunBorderWidget;
 class ULightgunStartupPanel;
 class ULightgunOptionsPanel;
+class ULightgunCalibrationScreen;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLightgunStatusChanged);
 
@@ -134,6 +135,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Lightgun|UI")
 	void ShowOptionsPanel();
 
+	/** Aim test range: crosshair tracking, hits fire recoil, offscreen shots stay silent. */
+	UFUNCTION(BlueprintCallable, Category = "Lightgun|UI")
+	void ShowCalibrationScreen();
+
 	UPROPERTY(BlueprintAssignable, Category = "Lightgun")
 	FOnLightgunStatusChanged OnStatusChanged;
 
@@ -164,6 +169,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<ULightgunOptionsPanel> OptionsPanel;
+
+	UPROPERTY(Transient)
+	TObjectPtr<ULightgunCalibrationScreen> CalibrationScreen;
 
 	FTSTicker::FDelegateHandle StartupPollHandle;
 };
