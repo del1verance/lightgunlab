@@ -28,11 +28,11 @@ bool FMameOutputServer::Start(int32 Port)
 	Listener->OnConnectionAccepted().BindRaw(this, &FMameOutputServer::HandleConnection);
 	if (!Listener->IsActive())
 	{
-		UE_LOG(LogArcadeLightgun, Warning, TEXT("Outputs server failed to bind 127.0.0.1:%d (port in use?)"), Port);
+		UE_LOG(LogLightgunLab, Warning, TEXT("Outputs server failed to bind 127.0.0.1:%d (port in use?)"), Port);
 		Stop();
 		return false;
 	}
-	UE_LOG(LogArcadeLightgun, Log, TEXT("Outputs server listening on 127.0.0.1:%d as '%s'"), Port, *GameName);
+	UE_LOG(LogLightgunLab, Log, TEXT("Outputs server listening on 127.0.0.1:%d as '%s'"), Port, *GameName);
 	return true;
 }
 
@@ -80,7 +80,7 @@ bool FMameOutputServer::HandleConnection(FSocket* ClientSocket, const FIPv4Endpo
 		FScopeLock Lock(&ClientsLock);
 		Clients.Add(ClientSocket);
 	}
-	UE_LOG(LogArcadeLightgun, Log, TEXT("Outputs client connected from %s"), *Endpoint.ToString());
+	UE_LOG(LogLightgunLab, Log, TEXT("Outputs client connected from %s"), *Endpoint.ToString());
 	return true;
 }
 

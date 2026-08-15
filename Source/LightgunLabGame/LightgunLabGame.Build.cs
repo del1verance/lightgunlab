@@ -1,8 +1,8 @@
 using UnrealBuildTool;
 
-public class LightgunLab : ModuleRules
+public class LightgunLabGame : ModuleRules
 {
-	public LightgunLab(ReadOnlyTargetRules Target) : base(Target)
+	public LightgunLabGame(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 

@@ -5,8 +5,8 @@
 #include "LightgunTypes.h"
 #include "LightgunSettings.generated.h"
 
-UCLASS(config = Game, defaultconfig, meta = (DisplayName = "Arcade Lightgun"))
-class ARCADELIGHTGUN_API ULightgunSettings : public UDeveloperSettings
+UCLASS(config = Game, defaultconfig, meta = (DisplayName = "Lightgun Lab"))
+class LIGHTGUNLAB_API ULightgunSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
 

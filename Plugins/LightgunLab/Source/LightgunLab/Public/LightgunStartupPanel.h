@@ -15,7 +15,7 @@ class UButton;
  * zero content; subclass in Blueprint to reskin.
  */
 UCLASS(Blueprintable)
-class ARCADELIGHTGUN_API ULightgunStartupPanel : public UUserWidget
+class LIGHTGUNLAB_API ULightgunStartupPanel : public UUserWidget
 {
 	GENERATED_BODY()
 

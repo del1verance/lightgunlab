@@ -21,11 +21,13 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLightgunStatusChanged);
  * in the caller: FireRecoil() for live rounds, NotifyEmpty() for dry fire.
  */
 UCLASS()
-class ARCADELIGHTGUN_API ULightgunSubsystem : public UGameInstanceSubsystem
+class LIGHTGUNLAB_API ULightgunSubsystem : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
 
 public:
+	virtual ~ULightgunSubsystem() override;
+
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
@@ -148,9 +150,9 @@ private:
 	bool bStartupPanelShown = false;
 	FString LastError;
 
-	TUniquePtr<IRecoilBackend> Backend;
-	TUniquePtr<FMameOutputServer> TcpOutputs;
-	TUniquePtr<FMameWindowBroadcaster> WindowOutputs;
+	TSharedPtr<IRecoilBackend> Backend;
+	TSharedPtr<FMameOutputServer> TcpOutputs;
+	TSharedPtr<FMameWindowBroadcaster> WindowOutputs;
 
 	UPROPERTY(Transient)
 	TObjectPtr<ULightgunBorderWidget> BorderWidget;

@@ -83,7 +83,7 @@ bool FLightgunSerialPort::Open(const FString& PortName, int32 BaudRate, FString&
 		return false;
 	}
 
-	UE_LOG(LogArcadeLightgun, Log, TEXT("Opened %s @ %d baud"), *PortName, BaudRate);
+	UE_LOG(LogLightgunLab, Log, TEXT("Opened %s @ %d baud"), *PortName, BaudRate);
 	return true;
 #else
 	OutError = TEXT("Serial ports are only supported on Windows");
@@ -136,7 +136,7 @@ uint32 FLightgunSerialPort::Run()
 			if (!WriteFile(static_cast<HANDLE>(Handle), Utf8.Get(), static_cast<DWORD>(Utf8.Length()), &Written, nullptr))
 			{
 				bWriteError = true;
-				UE_LOG(LogArcadeLightgun, Warning, TEXT("Serial write failed on %s"), *Port);
+				UE_LOG(LogLightgunLab, Warning, TEXT("Serial write failed on %s"), *Port);
 			}
 		}
 		if (!bStopRequested && WakeEvent)
@@ -164,7 +164,7 @@ void FLightgunSerialPort::CloseHandle_Internal()
 	{
 		CloseHandle(static_cast<HANDLE>(Handle));
 		Handle = nullptr;
-		UE_LOG(LogArcadeLightgun, Log, TEXT("Closed %s"), *Port);
+		UE_LOG(LogLightgunLab, Log, TEXT("Closed %s"), *Port);
 	}
 #endif
 }

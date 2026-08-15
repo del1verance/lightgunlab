@@ -16,7 +16,7 @@ class USlider;
  * C++-built with zero content; subclass in Blueprint to reskin.
  */
 UCLASS(Blueprintable)
-class ARCADELIGHTGUN_API ULightgunOptionsPanel : public UUserWidget
+class LIGHTGUNLAB_API ULightgunOptionsPanel : public UUserWidget
 {
 	GENERATED_BODY()
 

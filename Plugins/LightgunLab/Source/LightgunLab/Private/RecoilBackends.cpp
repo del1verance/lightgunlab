@@ -162,7 +162,7 @@ namespace
 			if (!Connect(OutError))
 			{
 				// Software may not be running yet; stay lazy and retry on first send.
-				UE_LOG(LogArcadeLightgun, Warning, TEXT("Sinden recoil server not reachable yet: %s"), *OutError);
+				UE_LOG(LogLightgunLab, Warning, TEXT("Sinden recoil server not reachable yet: %s"), *OutError);
 			}
 
 			PumpHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FSindenTcpBackend::Pump), 0.005f);
@@ -245,7 +245,7 @@ namespace
 				return false;
 			}
 			Socket = NewSocket;
-			UE_LOG(LogArcadeLightgun, Log, TEXT("Connected to Sinden recoil server %s:%d"), *Host, TcpPort);
+			UE_LOG(LogLightgunLab, Log, TEXT("Connected to Sinden recoil server %s:%d"), *Host, TcpPort);
 			return true;
 		}
 
@@ -310,7 +310,7 @@ namespace
 			int32 Sent = 0;
 			if (!Socket->Send(reinterpret_cast<const uint8*>(Utf8.Get()), Utf8.Length(), Sent))
 			{
-				UE_LOG(LogArcadeLightgun, Warning, TEXT("Sinden recoil send failed; will reconnect"));
+				UE_LOG(LogLightgunLab, Warning, TEXT("Sinden recoil send failed; will reconnect"));
 				CloseSocket();
 			}
 			LastSendTime = Now;
@@ -330,7 +330,7 @@ namespace
 	};
 }
 
-TUniquePtr<IRecoilBackend> MakeRecoilBackend(const FDetectedLightgun& Gun)
+TSharedPtr<IRecoilBackend> MakeRecoilBackend(const FDetectedLightgun& Gun)
 {
 	switch (Gun.Model)
 	{
@@ -338,9 +338,9 @@ TUniquePtr<IRecoilBackend> MakeRecoilBackend(const FDetectedLightgun& Gun)
 	case ELightgunModel::OpenFIRE:
 	case ELightgunModel::Blamcon:
 	case ELightgunModel::RS3Reaper:
-		return MakeUnique<FSerialRecoilBackend>();
+		return MakeShared<FSerialRecoilBackend>();
 	case ELightgunModel::Sinden:
-		return MakeUnique<FSindenTcpBackend>();
+		return MakeShared<FSindenTcpBackend>();
 	default:
 		return nullptr;
 	}

@@ -44,4 +44,4 @@ public:
 };
 
 /** Creates the right backend for a detected gun, or null for models without a control channel. */
-TUniquePtr<IRecoilBackend> MakeRecoilBackend(const FDetectedLightgun& Gun);
+TSharedPtr<IRecoilBackend> MakeRecoilBackend(const FDetectedLightgun& Gun);

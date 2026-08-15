@@ -2,17 +2,17 @@
 	"FileVersion": 3,
 	"EngineAssociation": "",
 	"Category": "Games",
-	"Description": "Lightgun arcade test bed for the ArcadeLightgun plugin",
+	"Description": "Lightgun arcade test bed for the LightgunLab plugin",
 	"Modules": [
 		{
-			"Name": "LightgunLab",
+			"Name": "LightgunLabGame",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		}
 	],
 	"Plugins": [
 		{
-			"Name": "ArcadeLightgun",
+			"Name": "LightgunLab",
 			"Enabled": true
 		}
 	]

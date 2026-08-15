@@ -1,8 +1,8 @@
-# LightgunLab / ArcadeLightgun
+# Lightgun Lab
 
 Native lightgun support for Unreal Engine 5.8 on Windows: auto-detection, **ammo-gated recoil** (the gun kicks on live rounds and stays silent on an empty magazine, like a real arcade board), Sinden border rendering, and MAME-compatible output emission for existing cabinet rigs.
 
-`Plugins/ArcadeLightgun` is the deliverable — drop it into any UE 5.8 project. The surrounding `LightgunLab` project is a minimal test bed.
+`Plugins/LightgunLab` is the deliverable — drop it into any UE 5.8 project. The surrounding `LightgunLab` project is a minimal test bed.
 
 ## Supported guns
 
@@ -50,7 +50,7 @@ Players with an existing rig point their `lightgunlab.ini` at the game and every
 
 ## Install
 
-**Into your own project:** copy `Plugins/ArcadeLightgun` into `<YourProject>/Plugins/`, enable it, build. All UI panels are C++-built with zero content dependencies and can be subclassed in Blueprint for reskinning.
+**Into your own project:** copy `Plugins/LightgunLab` into `<YourProject>/Plugins/`, enable it, build. All UI panels are C++-built with zero content dependencies and can be subclassed in Blueprint for reskinning.
 
 **This test bed:** clone into a UE 5.8 source-build root (or fix up `EngineAssociation`), then open `LightgunLab.uproject`.
 

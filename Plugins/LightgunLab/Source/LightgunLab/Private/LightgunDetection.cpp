@@ -214,5 +214,5 @@ void FLightgunDetector::Scan(TArray<FDetectedLightgun>& OutGuns)
 	}
 #endif // PLATFORM_WINDOWS
 
-	UE_LOG(LogArcadeLightgun, Log, TEXT("Lightgun scan found %d device(s)"), OutGuns.Num());
+	UE_LOG(LogLightgunLab, Log, TEXT("Lightgun scan found %d device(s)"), OutGuns.Num());
 }

@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 
-class FArcadeLightgunModule : public IModuleInterface
+class FLightgunLabModule : public IModuleInterface
 {
 public:
 	virtual void StartupModule() override;

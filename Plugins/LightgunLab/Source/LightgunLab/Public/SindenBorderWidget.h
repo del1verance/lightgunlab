@@ -10,7 +10,7 @@
  * everything, ignores input. Requires the game to run in borderless fullscreen.
  */
 UCLASS(Blueprintable)
-class ARCADELIGHTGUN_API ULightgunBorderWidget : public UUserWidget
+class LIGHTGUNLAB_API ULightgunBorderWidget : public UUserWidget
 {
 	GENERATED_BODY()
 

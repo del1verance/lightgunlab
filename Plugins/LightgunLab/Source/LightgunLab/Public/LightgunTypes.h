@@ -24,7 +24,7 @@ enum class ERecoilMode : uint8
 };
 
 USTRUCT(BlueprintType)
-struct ARCADELIGHTGUN_API FDetectedLightgun
+struct LIGHTGUNLAB_API FDetectedLightgun
 {
 	GENERATED_BODY()
 
@@ -56,4 +56,4 @@ struct ARCADELIGHTGUN_API FDetectedLightgun
 	FString DetectionNote;
 };
 
-DECLARE_LOG_CATEGORY_EXTERN(LogArcadeLightgun, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogLightgunLab, Log, All);

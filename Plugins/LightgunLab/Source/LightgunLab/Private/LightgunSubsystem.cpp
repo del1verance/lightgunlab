@@ -13,6 +13,9 @@
 #include "Blueprint/UserWidget.h"
 #include "Containers/Ticker.h"
 
+// Defined here so TUniquePtr members see complete backend/server types.
+ULightgunSubsystem::~ULightgunSubsystem() = default;
+
 void ULightgunSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
@@ -98,7 +101,7 @@ bool ULightgunSubsystem::SelectGunByIndex(int32 Index)
 		if (!Backend->Init(Gun, *GetDefault<ULightgunSettings>(), Error))
 		{
 			LastError = Error;
-			UE_LOG(LogArcadeLightgun, Warning, TEXT("Backend init failed for %s: %s"), *Gun.DisplayName, *Error);
+			UE_LOG(LogLightgunLab, Warning, TEXT("Backend init failed for %s: %s"), *Gun.DisplayName, *Error);
 			Backend.Reset();
 		}
 		else
@@ -117,7 +120,7 @@ bool ULightgunSubsystem::SelectGunByIndex(int32 Index)
 		SetBorderVisible(true);
 	}
 
-	UE_LOG(LogArcadeLightgun, Log, TEXT("Selected lightgun: %s"), *Gun.DisplayName);
+	UE_LOG(LogLightgunLab, Log, TEXT("Selected lightgun: %s"), *Gun.DisplayName);
 	OnStatusChanged.Broadcast();
 	return true;
 }
@@ -397,7 +400,7 @@ void ULightgunSubsystem::StartOutputServersIfEnabled()
 	const ULightgunSettings* Settings = GetDefault<ULightgunSettings>();
 	if (Settings->bEnableTcpOutputs && !TcpOutputs.IsValid())
 	{
-		TcpOutputs = MakeUnique<FMameOutputServer>(Settings->OutputsGameName);
+		TcpOutputs = MakeShared<FMameOutputServer>(Settings->OutputsGameName);
 		if (!TcpOutputs->Start(Settings->OutputsTcpPort))
 		{
 			TcpOutputs.Reset();
@@ -405,7 +408,7 @@ void ULightgunSubsystem::StartOutputServersIfEnabled()
 	}
 	if (Settings->bEnableWindowMessageOutputs && !WindowOutputs.IsValid())
 	{
-		WindowOutputs = MakeUnique<FMameWindowBroadcaster>(Settings->OutputsGameName);
+		WindowOutputs = MakeShared<FMameWindowBroadcaster>(Settings->OutputsGameName);
 		if (!WindowOutputs->Start())
 		{
 			WindowOutputs.Reset();

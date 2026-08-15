@@ -217,7 +217,7 @@ bool FMameWindowBroadcaster::Start()
 		return false;
 	}
 	Impl->ReadyEvent->Wait(1000);
-	UE_LOG(LogArcadeLightgun, Log, TEXT("MAME window-message outputs broadcasting as '%s'"), *GameName);
+	UE_LOG(LogLightgunLab, Log, TEXT("MAME window-message outputs broadcasting as '%s'"), *GameName);
 	return true;
 #else
 	return false;
