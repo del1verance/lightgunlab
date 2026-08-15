@@ -176,6 +176,7 @@ namespace
 			Prefix = FString::FromInt(PrefixSlot);
 			Strength = FMath::Clamp(Settings.RecoilStrength, 0, 10);
 			EmptyStrength = FMath::Clamp(Settings.SindenEmptyChamberStrength, 0, 10);
+			VibrationStrength = FMath::Clamp(Settings.SindenVibrationStrength, 1, 10);
 			return true; // Presence of the HID gun is enough to construct; connection self-heals.
 		}
 
@@ -202,11 +203,12 @@ namespace
 
 		virtual void FireRecoil() override  { Send(TEXT("A")); }
 		virtual void NotifyEmpty() override { Send(TEXT("U") + FString::FromInt(EmptyStrength)); }
-		// The Sinden has no rumble motor; its "vibration" is the lightest possible
-		// solenoid tap (U1) - clearly distinct from a real kick (A) and from the
-		// stronger dry-fire clunk (U4 default).
-		virtual void NotifyReloaded() override { Send(TEXT("U1")); }
-		virtual void RumblePulse() override { Send(TEXT("U1")); }
+		// The Sinden has no rumble motor; its "vibration" is the lightest FEELABLE
+		// solenoid tap - U1/U2 sit below the hammer's actuation threshold on real
+		// hardware (bench 2026-08-15), so the strength is configurable, default 3.
+		// Still clearly lighter than a kick (A) or the dry-fire clunk (U4 default).
+		virtual void NotifyReloaded() override { Send(TEXT("U") + FString::FromInt(VibrationStrength)); }
+		virtual void RumblePulse() override { Send(TEXT("U") + FString::FromInt(VibrationStrength)); }
 		virtual void PlayEffect(const FString& E) override { Send(E); }
 
 		virtual bool IsHealthy() const override;
@@ -226,6 +228,7 @@ namespace
 		FString Prefix = TEXT("1");
 		int32 Strength = 8;
 		int32 EmptyStrength = 4;
+		int32 VibrationStrength = 3;
 		bool bInControl = false;
 	};
 }

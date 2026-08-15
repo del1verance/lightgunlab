@@ -79,6 +79,12 @@ public:
 	UPROPERTY(config, EditAnywhere, BlueprintReadOnly, Category = "Sinden", meta = (ClampMin = "0", ClampMax = "10"))
 	int32 SindenEmptyChamberStrength = 4;
 
+	/** Strength 1-10 for the Sinden's vibration stand-in (its lightest feelable solenoid tap) on
+	    reload, damage rumble, and Test vibration. U1-U2 sit below the solenoid's physical actuation
+	    threshold on the bench gun - 3 is the lightest default that actually registers. */
+	UPROPERTY(config, EditAnywhere, BlueprintReadOnly, Category = "Sinden", meta = (ClampMin = "1", ClampMax = "10"))
+	int32 SindenVibrationStrength = 3;
+
 	/** Minimum ms between commands to the Sinden recoil server. Its reader treats each receive as one
 	    command and chokes on merged messages; 200ms is bench-safe, lower at your own risk. */
 	UPROPERTY(config, EditAnywhere, BlueprintReadOnly, Category = "Sinden", meta = (ClampMin = "15", ClampMax = "1000"))
