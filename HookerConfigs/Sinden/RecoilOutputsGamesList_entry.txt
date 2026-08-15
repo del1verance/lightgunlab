@@ -1,0 +1,1 @@
+lightgunlab|MameCustom,0,10,P1_CtmRecoil = 1,,P2_CtmRecoil = 1,,0,0,Lightgun Lab
