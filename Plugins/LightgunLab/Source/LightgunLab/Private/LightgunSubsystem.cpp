@@ -167,6 +167,7 @@ void ULightgunSubsystem::SetTwoPlayerMode(bool bEnabled)
 		TeardownBackend(1);
 		Slots[1] = FPlayerSlot();
 	}
+	UpdateBorderForSelections();
 	OnStatusChanged.Broadcast();
 }
 
@@ -239,14 +240,10 @@ bool ULightgunSubsystem::SelectGunForPlayer(int32 PlayerIndex, int32 Index)
 
 	PersistSlotPrefs(PlayerIndex);
 
+	UpdateBorderForSelections();
 	if (IsTwoPlayerMode())
 	{
-		UpdateBorderForTwoPlayer();
 		PushRouterBindings();
-	}
-	else if (Gun.Model == ELightgunModel::Sinden && GetDefault<ULightgunSettings>()->bBorderAutoShow)
-	{
-		SetBorderVisible(true);
 	}
 
 	// Seize control now so the init handshake drains through the paced queue
@@ -277,14 +274,10 @@ void ULightgunSubsystem::SelectMouseForPlayer(int32 PlayerIndex)
 
 	PersistSlotPrefs(PlayerIndex);
 
+	UpdateBorderForSelections();
 	if (IsTwoPlayerMode())
 	{
-		UpdateBorderForTwoPlayer();
 		PushRouterBindings();
-	}
-	else if (PlayerIndex == 0)
-	{
-		SetBorderVisible(false);
 	}
 	OnStatusChanged.Broadcast();
 }
@@ -378,10 +371,7 @@ void ULightgunSubsystem::StartRangeSession()
 	{
 		BeginGameControlForPlayer(Player);
 	}
-	if (IsTwoPlayerMode())
-	{
-		UpdateBorderForTwoPlayer();
-	}
+	UpdateBorderForSelections();
 
 	// Raw routing runs whenever a gun is in play - in 1P it pins aim to the
 	// SELECTED gun (any other attached mouse/gun is ignored). Mouse-only 1P
@@ -441,14 +431,15 @@ void ULightgunSubsystem::PushRouterBindings()
 	RawRouter->RebuildDeviceMap();
 }
 
-void ULightgunSubsystem::UpdateBorderForTwoPlayer()
+void ULightgunSubsystem::UpdateBorderForSelections()
 {
-	// 2P rule: the border is global (the Sinden software tracks the whole screen),
-	// so it shows when EITHER selected gun is a Sinden.
-	bool bAnySinden = false;
-	for (int32 Player = 0; Player < LightgunMaxPlayers; ++Player)
+	// The border is global (the Sinden software tracks the whole screen): it shows
+	// while ANY selected gun is a Sinden and goes away when the last one is
+	// deselected - in 1P and 2P alike.
+	bool bAnySinden = GetActiveGunForPlayer(0).Model == ELightgunModel::Sinden;
+	if (IsTwoPlayerMode())
 	{
-		bAnySinden |= GetActiveGunForPlayer(Player).Model == ELightgunModel::Sinden;
+		bAnySinden |= GetActiveGunForPlayer(1).Model == ELightgunModel::Sinden;
 	}
 	if (bAnySinden && GetDefault<ULightgunSettings>()->bBorderAutoShow)
 	{

@@ -213,6 +213,9 @@ void ULightgunStartupPanel::NativeOnInitialized()
 		}).Num();
 	}
 	SetMode(KnownGuns >= 2 || GetDefault<ULightgunSettings>()->bTwoPlayerMode);
+
+	// A detected Sinden needs the border up to aim at this very panel.
+	ShowBorderIfAnySindenDetected();
 }
 
 void ULightgunStartupPanel::SetMode(bool bTwoPlayers)
@@ -247,6 +250,7 @@ void ULightgunStartupPanel::SetMode(bool bTwoPlayers)
 	{
 		Populate();
 	}
+	UpdateBorderForPicks();
 }
 
 void ULightgunStartupPanel::OnOnePlayerClicked()
@@ -469,6 +473,46 @@ void ULightgunStartupPanel::OnP2SelectionChanged(FString SelectedItem, ESelectIn
 	RefreshTwoPlayerStatus();
 }
 
+void ULightgunStartupPanel::ShowBorderIfAnySindenDetected()
+{
+	ULightgunSubsystem* Lightgun = GetLightgun();
+	if (!Lightgun || !GetDefault<ULightgunSettings>()->bBorderAutoShow)
+	{
+		return;
+	}
+	const bool bAnySinden = Lightgun->GetDetectedGuns().ContainsByPredicate(
+		[](const FDetectedLightgun& Gun) { return Gun.Model == ELightgunModel::Sinden; });
+	if (bAnySinden)
+	{
+		Lightgun->SetBorderVisible(true);
+	}
+}
+
+void ULightgunStartupPanel::UpdateBorderForPicks()
+{
+	ULightgunSubsystem* Lightgun = GetLightgun();
+	if (!Lightgun || !GetDefault<ULightgunSettings>()->bBorderAutoShow)
+	{
+		return;
+	}
+	const TArray<FDetectedLightgun>& Guns = Lightgun->GetDetectedGuns();
+	auto IsSindenPick = [&Guns](int32 GunIndex)
+	{
+		return Guns.IsValidIndex(GunIndex) && Guns[GunIndex].Model == ELightgunModel::Sinden;
+	};
+	bool bAnySinden = false;
+	if (Lightgun->IsTwoPlayerMode())
+	{
+		bAnySinden = IsSindenPick(GetPickedGunIndex(0)) || IsSindenPick(GetPickedGunIndex(1));
+	}
+	else
+	{
+		const int32 ComboIndex = GunCombo ? GunCombo->GetSelectedIndex() : INDEX_NONE;
+		bAnySinden = IsSindenPick(ComboToGunIndex.IsValidIndex(ComboIndex) ? ComboToGunIndex[ComboIndex] : INDEX_NONE);
+	}
+	Lightgun->SetBorderVisible(bAnySinden);
+}
+
 void ULightgunStartupPanel::UpdateTestButtonEnableStates()
 {
 	ULightgunSubsystem* Lightgun = GetLightgun();
@@ -505,6 +549,7 @@ void ULightgunStartupPanel::UpdateTestButtonEnableStates()
 void ULightgunStartupPanel::RefreshTwoPlayerStatus()
 {
 	UpdateTestButtonEnableStates();
+	UpdateBorderForPicks();
 
 	ULightgunSubsystem* Lightgun = GetLightgun();
 	if (!Lightgun || !StatusText)
@@ -688,6 +733,7 @@ void ULightgunStartupPanel::OnRescanClicked()
 			PopulateTwoPlayer(false);
 			RefreshTwoPlayerStatus();
 		}
+		ShowBorderIfAnySindenDetected();
 	}
 }
 
@@ -722,4 +768,5 @@ void ULightgunStartupPanel::OnGunSelectionChanged(FString SelectedItem, ESelectI
 		StatusText->SetText(FText::FromString(TEXT("Mouse aiming, no recoil hardware.")));
 	}
 	UpdateTestButtonEnableStates();
+	UpdateBorderForPicks();
 }

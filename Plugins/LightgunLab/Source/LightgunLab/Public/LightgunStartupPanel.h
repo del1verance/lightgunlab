@@ -84,6 +84,11 @@ private:
 	void RefreshTwoPlayerStatus();
 	/** Greys out Test recoil / Test vibration wherever the picked device lacks the hardware. */
 	void UpdateTestButtonEnableStates();
+	/** Shows the Sinden border as soon as one is DETECTED (a Sinden aims via its
+	    software regardless of selection, so it needs the border to point at the picker). */
+	void ShowBorderIfAnySindenDetected();
+	/** Border tracks the pending picks: up while any pick is a Sinden, gone when none is. */
+	void UpdateBorderForPicks();
 
 	UPROPERTY(Transient) TObjectPtr<UComboBoxString> GunCombo;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> StatusText;

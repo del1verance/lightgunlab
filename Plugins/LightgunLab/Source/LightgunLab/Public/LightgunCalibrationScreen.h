@@ -64,6 +64,8 @@ private:
 	void RefreshRouterInfo();
 	/** 2P: a shot landing on a range button presses it. True if consumed by UI. */
 	bool TryShootButton(const FVector2f& DesktopPos, int32 PlayerIndex);
+	/** Keeps the widget UI (and painted HUD anchors) inside the Sinden border when it's up. */
+	void UpdateSafeZoneInset();
 	FVector2f DesktopToLocal(const FVector2f& DesktopPos) const;
 	FLinearColor GetPlayerColor(int32 PlayerIndex) const;
 
@@ -75,6 +77,7 @@ private:
 	UPROPERTY(Transient) TObjectPtr<class UButton> BackButton;
 	UPROPERTY(Transient) TObjectPtr<class UButton> CrosshairToggleButton;
 	UPROPERTY(Transient) TObjectPtr<class UButton> SwapButton;
+	UPROPERTY(Transient) TObjectPtr<class UBorder> SafeZonePadding;
 
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> PlayerStatusText[2];
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> PlayerCounterText[2];
@@ -106,6 +109,8 @@ private:
 	int32 PlayerDryFireCount[2] = { 0, 0 };
 	int32 PlayerReloadCount[2] = { 0, 0 };
 	float RouterInfoRefreshAccumulator = 0.f;
+	/** Current UI inset in local units: the Sinden border's thickness while it's visible. */
+	float UiInset = 0.f;
 
 	FDelegateHandle AimHandle;
 	FDelegateHandle TriggerHandle;

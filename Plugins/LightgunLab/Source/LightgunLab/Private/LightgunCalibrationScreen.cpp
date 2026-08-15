@@ -7,6 +7,7 @@
 #include "LightgunRawInput.h"
 
 #include "Blueprint/WidgetTree.h"
+#include "Components/Border.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
 #include "Components/VerticalBox.h"
@@ -54,8 +55,16 @@ void ULightgunCalibrationScreen::NativeOnInitialized()
 	bRawDriven = Lightgun && Lightgun->GetRawRouter().IsValid() &&
 		(bTwoPlayerMode || Lightgun->HasActiveGun());
 
+	// Safe zone: everything lives inside a transparent padding container whose
+	// margins grow to the Sinden border's thickness while the border is up, so
+	// no text or button ever sits under the tracking frame.
+	SafeZonePadding = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+	SafeZonePadding->SetBrushColor(FLinearColor::Transparent);
+	SafeZonePadding->SetPadding(FMargin(0.f));
+	WidgetTree->RootWidget = SafeZonePadding;
+
 	UOverlay* Root = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
-	WidgetTree->RootWidget = Root;
+	SafeZonePadding->SetContent(Root);
 
 	if (!bTwoPlayerMode)
 	{
@@ -203,10 +212,32 @@ void ULightgunCalibrationScreen::NativeOnInitialized()
 	}
 }
 
+void ULightgunCalibrationScreen::UpdateSafeZoneInset()
+{
+	ULightgunSubsystem* Lightgun = GetLightgun();
+	float NewInset = 0.f;
+	if (Lightgun && Lightgun->IsBorderVisible())
+	{
+		// Matches ULightgunBorderWidget: thickness = (white + black)% of HEIGHT, all edges.
+		const ULightgunSettings* Settings = GetDefault<ULightgunSettings>();
+		NewInset = (Settings->BorderWhitePercent + Settings->BorderBlackPercent) * 0.01f *
+			GetCachedGeometry().GetLocalSize().Y;
+	}
+	if (!FMath::IsNearlyEqual(NewInset, UiInset, 0.5f))
+	{
+		UiInset = NewInset;
+		if (SafeZonePadding)
+		{
+			SafeZonePadding->SetPadding(FMargin(UiInset));
+		}
+	}
+}
+
 void ULightgunCalibrationScreen::NativeConstruct()
 {
 	Super::NativeConstruct();
 	SetKeyboardFocus(); // any-key reload needs us focused
+	UpdateSafeZoneInset();
 
 	if (bRawDriven)
 	{
@@ -244,6 +275,8 @@ void ULightgunCalibrationScreen::NativeDestruct()
 void ULightgunCalibrationScreen::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	UpdateSafeZoneInset(); // border can show/hide live (options, mode changes)
 
 	if (!bRawDriven)
 	{
@@ -653,16 +686,16 @@ int32 ULightgunCalibrationScreen::NativePaint(const FPaintArgs& Args, const FGeo
 
 	if (!bTwoPlayerMode)
 	{
-		// --- One player: the v0.3 painting, untouched ---
+		// --- One player: the v0.3 painting, HUD anchors inset by the border safe zone ---
 		if (Weapon)
 		{
-			DrawPipRow(Weapon, 48.f, Size.Y - 96.f, FLinearColor(1.f, 0.72f, 0.25f));
+			DrawPipRow(Weapon, 48.f + UiInset, Size.Y - 96.f - UiInset, FLinearColor(1.f, 0.72f, 0.25f));
 
 			if (Weapon->IsEmpty())
 			{
 				const float Pulse = 0.55f + 0.45f * FMath::Sin(static_cast<float>(Now) * 7.f);
 				FSlateDrawElement::MakeText(OutDrawElements, Layer,
-					AllottedGeometry.ToPaintGeometry(FVector2f(400.f, 40.f), FSlateLayoutTransform(FVector2f(48.f, Size.Y - 140.f))),
+					AllottedGeometry.ToPaintGeometry(FVector2f(400.f, 40.f), FSlateLayoutTransform(FVector2f(48.f + UiInset, Size.Y - 140.f - UiInset))),
 					FString(TEXT("RELOAD!")), FCoreStyle::GetDefaultFontStyle("Bold", 24),
 					ESlateDrawEffect::None, FLinearColor(1.f, 0.35f, 0.3f, Pulse));
 			}
@@ -706,14 +739,14 @@ int32 ULightgunCalibrationScreen::NativePaint(const FPaintArgs& Args, const FGeo
 			continue;
 		}
 		const FLinearColor PlayerColor = GetPlayerColor(Player);
-		const float FirstPipX = Player == 0 ? 48.f : Size.X - 48.f - PipRowWidth;
-		DrawPipRow(PlayerWeapon, FirstPipX, Size.Y - 96.f, PlayerColor);
+		const float FirstPipX = Player == 0 ? 48.f + UiInset : Size.X - 48.f - UiInset - PipRowWidth;
+		DrawPipRow(PlayerWeapon, FirstPipX, Size.Y - 96.f - UiInset, PlayerColor);
 
 		if (PlayerWeapon->IsEmpty())
 		{
 			const float Pulse = 0.55f + 0.45f * FMath::Sin(static_cast<float>(Now) * 7.f);
 			FSlateDrawElement::MakeText(OutDrawElements, Layer,
-				AllottedGeometry.ToPaintGeometry(FVector2f(400.f, 40.f), FSlateLayoutTransform(FVector2f(Player == 0 ? 48.f : Size.X - 48.f - 160.f, Size.Y - 140.f))),
+				AllottedGeometry.ToPaintGeometry(FVector2f(400.f, 40.f), FSlateLayoutTransform(FVector2f(Player == 0 ? 48.f + UiInset : Size.X - 48.f - UiInset - 160.f, Size.Y - 140.f - UiInset))),
 				FString(TEXT("RELOAD!")), FCoreStyle::GetDefaultFontStyle("Bold", 24),
 				ESlateDrawEffect::None, FLinearColor(PlayerColor.R, PlayerColor.G, PlayerColor.B, Pulse));
 		}

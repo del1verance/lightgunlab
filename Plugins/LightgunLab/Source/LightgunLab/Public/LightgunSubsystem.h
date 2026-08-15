@@ -257,7 +257,7 @@ private:
 	void TeardownBackend(int32 PlayerIndex);
 	void RestoreSavedSelection();
 	void PersistSlotPrefs(int32 PlayerIndex);
-	void UpdateBorderForTwoPlayer();
+	void UpdateBorderForSelections();
 	void PushRouterBindings();
 	FString PlayerPrefixed(int32 PlayerIndex, const FString& ShortName) const;
 	bool IsValidPlayer(int32 PlayerIndex) const { return PlayerIndex >= 0 && PlayerIndex < LightgunMaxPlayers; }
