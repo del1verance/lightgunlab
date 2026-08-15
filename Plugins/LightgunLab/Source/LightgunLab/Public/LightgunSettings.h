@@ -38,6 +38,34 @@ public:
 	UPROPERTY(config)
 	FString PreferredComPort;
 
+	// --- Two players, one PC ---
+
+	/** Last mode chosen on the startup panel. In 2P the range runs both guns off Raw Input. */
+	UPROPERTY(config)
+	bool bTwoPlayerMode = false;
+
+	/** Offer "Desktop mouse (aim only)" as a pickable player device in 2P mode. */
+	UPROPERTY(config, EditAnywhere, BlueprintReadOnly, Category = "Two Player")
+	bool bAllowMouseAsGun = true;
+
+	/** P1 crosshair (arcade convention: blue). */
+	UPROPERTY(config, EditAnywhere, BlueprintReadOnly, Category = "Two Player")
+	FLinearColor CrosshairColorP1 = FLinearColor(0.25f, 0.55f, 1.f);
+
+	/** P2 crosshair (arcade convention: red). */
+	UPROPERTY(config, EditAnywhere, BlueprintReadOnly, Category = "Two Player")
+	FLinearColor CrosshairColorP2 = FLinearColor(1.f, 0.3f, 0.25f);
+
+	/** Persisted P2 pick. Model None + bPreferredP2IsMouse means "Desktop mouse (aim only)". */
+	UPROPERTY(config)
+	ELightgunModel PreferredModelP2 = ELightgunModel::None;
+
+	UPROPERTY(config)
+	FString PreferredComPortP2;
+
+	UPROPERTY(config)
+	bool bPreferredP2IsMouse = true;
+
 	// --- Sinden ---
 
 	UPROPERTY(config, EditAnywhere, BlueprintReadOnly, Category = "Sinden")

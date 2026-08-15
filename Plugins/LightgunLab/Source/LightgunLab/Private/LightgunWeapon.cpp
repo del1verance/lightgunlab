@@ -3,13 +3,14 @@
 #include "LightgunWeapon.h"
 #include "LightgunSubsystem.h"
 
-void ULightgunWeapon::Initialize(ULightgunSubsystem* InSubsystem)
+void ULightgunWeapon::Initialize(ULightgunSubsystem* InSubsystem, int32 InPlayerIndex)
 {
 	Subsystem = InSubsystem;
+	PlayerIndex = InPlayerIndex;
 	Ammo = MagazineSize;
 	if (Subsystem)
 	{
-		Subsystem->SetAmmo(Ammo);
+		Subsystem->SetAmmoForPlayer(PlayerIndex, Ammo);
 	}
 	OnAmmoChanged.Broadcast(Ammo);
 }
@@ -20,7 +21,7 @@ bool ULightgunWeapon::TryFire()
 	{
 		if (Subsystem)
 		{
-			Subsystem->NotifyEmpty();
+			Subsystem->NotifyEmptyForPlayer(PlayerIndex);
 		}
 		OnDryFire.Broadcast();
 		return false;
@@ -29,8 +30,8 @@ bool ULightgunWeapon::TryFire()
 	--Ammo;
 	if (Subsystem)
 	{
-		Subsystem->FireRecoil();
-		Subsystem->SetAmmo(Ammo);
+		Subsystem->FireRecoilForPlayer(PlayerIndex);
+		Subsystem->SetAmmoForPlayer(PlayerIndex, Ammo);
 	}
 	OnAmmoChanged.Broadcast(Ammo);
 	return true;
@@ -41,11 +42,11 @@ void ULightgunWeapon::Reload()
 	Ammo = MagazineSize;
 	if (Subsystem)
 	{
-		Subsystem->SetAmmo(Ammo);
+		Subsystem->SetAmmoForPlayer(PlayerIndex, Ammo);
 		// Sinden's vendor-suggested reload feel: a quick double pulse.
-		if (Subsystem->GetActiveGun().Model == ELightgunModel::Sinden)
+		if (Subsystem->GetActiveGunForPlayer(PlayerIndex).Model == ELightgunModel::Sinden)
 		{
-			Subsystem->PlayGunEffect(TEXT("T2170"));
+			Subsystem->PlayGunEffectForPlayer(PlayerIndex, TEXT("T2170"));
 		}
 	}
 	OnAmmoChanged.Broadcast(Ammo);

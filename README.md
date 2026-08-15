@@ -1,6 +1,6 @@
 # Lightgun Lab
 
-Native lightgun support for Unreal Engine 5.8 on Windows: auto-detection, **ammo-gated recoil** (the gun kicks on live rounds and stays silent on an empty magazine, like a real arcade board), Sinden border rendering, and MAME-compatible output emission for existing cabinet rigs.
+Native lightgun support for Unreal Engine 5.8 on Windows: auto-detection, **ammo-gated recoil** (the gun kicks on live rounds and stays silent on an empty magazine, like a real arcade board), **two guns on one PC** via Windows Raw Input, Sinden border rendering, and MAME-compatible output emission for existing cabinet rigs.
 
 `Plugins/LightgunLab` is the deliverable — drop it into any UE 5.8 project. The surrounding `LightgunLab` project is a minimal test bed.
 
@@ -15,7 +15,19 @@ Native lightgun support for Unreal Engine 5.8 on Windows: auto-detection, **ammo
 | **Blamcon** | mouse cursor | COM 9600: `SM.6.1` → `FB.0.1` → `ES` | vendor serial-command docs |
 | Anything MAMEHooker knows (AimTrak, custom cabs) | mouse cursor | **Outputs mode** — see below | MAME network/window-message output protocols |
 
-Guns are auto-detected by USB VID/PID (Gun4IR `2341:804x`, OpenFIRE `F143`, Blamcon `3673`, RS3 `0483:5740`, Sinden HID `16C0:0F0x` + software process check), with a user-extensible ID override list in settings for unknown firmware. A startup panel lists what was found, lets the player confirm/switch/test-fire, and remembers the choice. Confirming drops into an **aim test range with a live 6-round weapon** (`ULightgunWeapon`, reusable from any actor): a custom crosshair tracks the gun (OS cursor fully hidden), on-screen shots spend ammo and fire recoil with hit markers and HUD pips, an empty magazine dry-fires with **no recoil** (Sinden gets its soft empty-chamber clunk, RS3 its `Z0` state), and reload comes from an offscreen shot, any non-trigger gun button, or any keyboard key — with Sinden's `T2170` double-pulse rack on reload. Rapid fire is lossless (double-click events handled; Sinden fire runs collapse into gun-paced `T` bursts).
+Guns are auto-detected by USB VID/PID (Gun4IR `2341:804x`, OpenFIRE `F143`, Blamcon `3673`, RS3 `0483:5740`, Sinden HID `16C0:0F0x` + software process check — every physical Sinden enumerated separately), with a user-extensible ID override list in settings for unknown firmware. A startup panel lists what was found, lets the player confirm/switch/test-fire, and remembers the choice. Confirming drops into an **aim test range with a live 6-round weapon** (`ULightgunWeapon`, reusable from any actor): a custom crosshair tracks the gun (OS cursor fully hidden), on-screen shots spend ammo and fire recoil with hit markers and HUD pips, an empty magazine dry-fires with **no recoil** (Sinden gets its soft empty-chamber clunk, RS3 its `Z0` state), and reload comes from an offscreen shot, any non-trigger gun button, or any keyboard key — with Sinden's `T2170` double-pulse rack on reload. Rapid fire is lossless (double-click events handled; Sinden fire runs collapse into gun-paced `T` bursts).
+
+## Two players, one PC (v0.4)
+
+Windows merges every pointing device into one cursor; Lightgun Lab un-merges them. A **"Two players" toggle on the startup panel** gives each player their own device dropdown — any mix works: Sinden + GUN4IR, two Sindens, or a gun plus the **desktop mouse as an aim-only P2**. The same physical device can never serve both players.
+
+- **Per-device aim** through a Windows Raw Input router (`WM_INPUT` with `RIDEV_INPUTSINK`): each gun's HID mouse is correlated to its player by exact device path, shared USB composite parent (which tells two *identical* guns apart by tying each COM port to its sibling HID interface), or VID/PID — with a **Swap P1↔P2** button on the range for the cases hardware can't disambiguate.
+- **Two crosshairs** (P1 blue, P2 red — both configurable via `CrosshairColorP1/P2`), two ammo pip rows, per-player hit rings, status lines, and RELOAD indicators.
+- **Two independent `ULightgunWeapon` magazines** — each `Initialize(Subsystem, PlayerIndex)`; the whole 1P API (`FireRecoil()` etc.) now has `...ForPlayer(Index)` twins, and outputs emit `P1_*`/`P2_*` per player.
+- **Per-gun reload isolation**: a gun's own non-trigger buttons and its offscreen corner shot reload only that gun — including buttons that present as *keyboard* keys (GUN4IR/Sinden), which are routed per-device through raw keyboard input. The desk keyboard (uncorrelated) reloads P1.
+- **One Sinden TCP connection, ever**: all Sinden recoil rides a single shared, paced socket with per-player `1`/`2` command prefixes matching the software's Lightgun A/B assignment. Two Sindens = two prefixes, one socket — reselection, swaps, and mode switches never reconnect it.
+- In 2P the range takes gameplay input **exclusively** from the raw router (the merged cursor can't double-fire), while panel buttons stay clickable; the 1P flow is byte-for-byte the validated v0.3 path.
+- The Sinden border shows when **either** selected gun is a Sinden.
 
 ## The ammo gate
 
@@ -54,9 +66,9 @@ Players with an existing rig point their `lightgunlab.ini` at the game and every
 
 **This test bed:** clone into a UE 5.8 source-build root (or fix up `EngineAssociation`), then open `LightgunLab.uproject`.
 
-## Status — v0.3
+## Status — v0.4
 
-Compiles clean; protocols implemented verbatim from vendor documentation. **Sinden and GUN4IR: fully validated end-to-end in engine on real hardware** (2026-08-15), including the complete weapon loop — six live rounds with recoil, dry-fire on empty, all three reload paths, and lossless rapid fire. Both guns: USB detection → startup picker → game control seizure (gun's own trigger recoil correctly silenced) → game-commanded recoil on the first shot → clean handback. Sinden additionally: paced TCP, empty-chamber soft fire, and the V2.08b pitfalls documented under Known issues. GUN4IR note: bench gun enumerated as PID `8046` (community docs only list `8042`/`8043`), so detection accepts the whole `804x` block and settings expose user ID overrides. RS3/OpenFIRE/Blamcon backends built to spec and awaiting community confirmation. Known open items: RS3 VID/PID confirmation, GUN4IR firmware↔PID mapping, OpenFIRE `FDA` value formatting, live MAMEHooker 5.1 window-message validation.
+Compiles clean; protocols implemented verbatim from vendor documentation. **Single-player: fully validated end-to-end on real Sinden and GUN4IR hardware** (2026-08-15, v0.3.0), including the complete weapon loop — six live rounds with recoil, dry-fire on empty, all three reload paths, and lossless rapid fire — and v0.4 leaves that code path untouched. **Two-player (new in 0.4) is implemented and awaiting bench validation** on the reference rig (Sinden P1 + GUN4IR P2, swapped, and gun + desktop mouse). Sinden pitfalls (V2.08b) documented under Known issues. GUN4IR note: bench gun enumerated as PID `8046` (community docs only list `8042`/`8043`), so detection accepts the whole `804x` block and settings expose user ID overrides. RS3/OpenFIRE/Blamcon backends built to spec and awaiting community confirmation. Known open items: RS3 VID/PID confirmation, GUN4IR firmware↔PID mapping, OpenFIRE `FDA` value formatting, live MAMEHooker 5.1 window-message validation, and whether Sinden aim arrives as per-device raw input or injected events (the router detects and adopts injected absolute streams, logged as `adopted injected aim`).
 
 Licensed under the [MIT License](LICENSE).
 

@@ -9,13 +9,11 @@
 #include <setupapi.h>
 #include <devguid.h>
 #include <tlhelp32.h>
+#include <cfgmgr32.h>
 #include "Windows/HideWindowsPlatformTypes.h"
 
 namespace
 {
-	// {4D1E55B2-F16F-11CF-88CB-001111000030} — GUID_DEVINTERFACE_HID
-	static const GUID HidInterfaceGuid = { 0x4D1E55B2, 0xF16F, 0x11CF, { 0x88, 0xCB, 0x00, 0x11, 0x11, 0x00, 0x00, 0x30 } };
-
 	bool ParseVidPid(const FString& HardwareId, int32& OutVid, int32& OutPid)
 	{
 		const FString Upper = HardwareId.ToUpper();
@@ -60,8 +58,72 @@ namespace
 		}
 		return FString();
 	}
+
+	/** True for a devnode ID naming the physical USB device rather than one of its interfaces. */
+	bool IsPhysicalUsbDeviceId(const FString& UpperId)
+	{
+		return UpperId.StartsWith(TEXT("USB\\")) && UpperId.Contains(TEXT("VID_")) &&
+			UpperId.Contains(TEXT("PID_")) && !UpperId.Contains(TEXT("&MI_"));
+	}
+
+	/** Walks parents from a devnode until the physical USB device instance ID is found. */
+	FString ResolveCompositeParentFromDevNode(DEVINST DevNode)
+	{
+		DEVINST Current = DevNode;
+		for (int32 Hop = 0; Hop < 4; ++Hop)
+		{
+			WCHAR IdBuffer[MAX_DEVICE_ID_LEN] = {};
+			if (CM_Get_Device_IDW(Current, IdBuffer, MAX_DEVICE_ID_LEN, 0) != CR_SUCCESS)
+			{
+				return FString();
+			}
+			const FString Id = FString(IdBuffer).ToUpper();
+			if (IsPhysicalUsbDeviceId(Id))
+			{
+				return Id;
+			}
+			DEVINST Parent = 0;
+			if (CM_Get_Parent(&Parent, Current, 0) != CR_SUCCESS)
+			{
+				return FString();
+			}
+			Current = Parent;
+		}
+		return FString();
+	}
 }
 #endif // PLATFORM_WINDOWS
+
+FString FLightgunDetector::ResolveUsbCompositeParent(const FString& DeviceInterfacePath)
+{
+#if PLATFORM_WINDOWS
+	// "\\?\HID#VID_2341&PID_8046&MI_01#7&2f5c8e2a&0&0000#{guid}" ->
+	// instance ID "HID\VID_2341&PID_8046&MI_01\7&2f5c8e2a&0&0000", then walk to the USB parent.
+	FString Work = DeviceInterfacePath;
+	if (Work.StartsWith(TEXT("\\\\?\\")) || Work.StartsWith(TEXT("\\\\.\\")))
+	{
+		Work.RightChopInline(4);
+	}
+	const int32 GuidStart = Work.Find(TEXT("#{"));
+	if (GuidStart != INDEX_NONE)
+	{
+		Work.LeftInline(GuidStart);
+	}
+	Work.ReplaceCharInline(TEXT('#'), TEXT('\\'));
+
+	DEVINST DevNode = 0;
+	// The device is present (we just got raw input / an enumeration hit for it), but be
+	// lenient and accept phantoms too - the walk only reads IDs.
+	if (CM_Locate_DevNodeW(&DevNode, const_cast<WCHAR*>(*Work), CM_LOCATE_DEVNODE_NORMAL) != CR_SUCCESS &&
+		CM_Locate_DevNodeW(&DevNode, const_cast<WCHAR*>(*Work), CM_LOCATE_DEVNODE_PHANTOM) != CR_SUCCESS)
+	{
+		return FString();
+	}
+	return ResolveCompositeParentFromDevNode(DevNode);
+#else
+	return FString();
+#endif
+}
 
 bool FLightgunDetector::IsSindenSoftwareRunning()
 {
@@ -124,6 +186,7 @@ void FLightgunDetector::Scan(TArray<FDetectedLightgun>& OutGuns)
 				Gun.Vid = Vid;
 				Gun.Pid = Pid;
 				Gun.bRecoilCapable = true;
+				Gun.UsbCompositeParentId = ResolveCompositeParentFromDevNode(DevData.DevInst);
 
 				const FLightgunIdOverride* Override = GetDefault<ULightgunSettings>()->IdOverrides.FindByPredicate(
 					[Vid, Pid](const FLightgunIdOverride& O) { return O.Vid == Vid && O.Pid == Pid; });
@@ -179,52 +242,94 @@ void FLightgunDetector::Scan(TArray<FDetectedLightgun>& OutGuns)
 		}
 	}
 
-	// --- Pass 2: Sinden — HID mouse VID 16C0 PID 0F01/0F38/0F39; recoil rides its software's TCP server ---
+	// --- Pass 2: Sinden — HID mice VID 16C0 PID 0F01/0F02/0F38/0F39; recoil rides its software's TCP server ---
+	// Enumerated through the Raw Input device list so each PHYSICAL gun (= one HID mouse
+	// device) becomes its own entry, and its raw device path is captured for the 2P router.
 	{
-		bool bSindenHidPresent = false;
-		int32 SindenPid = 0;
-
-		HDEVINFO DevInfo = SetupDiGetClassDevsW(&HidInterfaceGuid, nullptr, nullptr, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
-		if (DevInfo != INVALID_HANDLE_VALUE)
+		struct FSindenMouse
 		{
-			SP_DEVICE_INTERFACE_DATA InterfaceData = {};
-			InterfaceData.cbSize = sizeof(InterfaceData);
-			for (DWORD Index = 0; SetupDiEnumDeviceInterfaces(DevInfo, nullptr, &HidInterfaceGuid, Index, &InterfaceData); ++Index)
+			FString Path;
+			FString ParentId;
+			int32 Pid = 0;
+			int32 PlayerHint = 1;
+		};
+		TArray<FSindenMouse> SindenMice;
+
+		UINT DeviceCount = 0;
+		if (GetRawInputDeviceList(nullptr, &DeviceCount, sizeof(RAWINPUTDEVICELIST)) == 0 && DeviceCount > 0)
+		{
+			TArray<RAWINPUTDEVICELIST> Devices;
+			Devices.SetNumZeroed(DeviceCount);
+			const UINT Filled = GetRawInputDeviceList(Devices.GetData(), &DeviceCount, sizeof(RAWINPUTDEVICELIST));
+			if (Filled != static_cast<UINT>(-1))
 			{
-				DWORD RequiredSize = 0;
-				SetupDiGetDeviceInterfaceDetailW(DevInfo, &InterfaceData, nullptr, 0, &RequiredSize, nullptr);
-				if (RequiredSize == 0 || RequiredSize > 1024)
+				for (UINT Index = 0; Index < Filled; ++Index)
 				{
-					continue;
-				}
-				TArray<uint8> Buffer;
-				Buffer.SetNumZeroed(RequiredSize);
-				PSP_DEVICE_INTERFACE_DETAIL_DATA_W Detail = reinterpret_cast<PSP_DEVICE_INTERFACE_DETAIL_DATA_W>(Buffer.GetData());
-				Detail->cbSize = sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA_W);
-				if (SetupDiGetDeviceInterfaceDetailW(DevInfo, &InterfaceData, Detail, RequiredSize, nullptr, nullptr))
-				{
-					const FString Path = FString(Detail->DevicePath).ToLower();
-					if (Path.Contains(TEXT("vid_16c0")) &&
-						(Path.Contains(TEXT("pid_0f01")) || Path.Contains(TEXT("pid_0f38")) || Path.Contains(TEXT("pid_0f39"))))
+					if (Devices[Index].dwType != RIM_TYPEMOUSE)
 					{
-						bSindenHidPresent = true;
-						SindenPid = Path.Contains(TEXT("pid_0f39")) ? 0x0F39 : (Path.Contains(TEXT("pid_0f38")) ? 0x0F38 : 0x0F01);
-						break;
+						continue;
+					}
+					WCHAR NameBuffer[512] = {};
+					UINT NameSize = UE_ARRAY_COUNT(NameBuffer);
+					if (GetRawInputDeviceInfoW(Devices[Index].hDevice, RIDI_DEVICENAME, NameBuffer, &NameSize) == static_cast<UINT>(-1))
+					{
+						continue;
+					}
+					const FString Path = FString(NameBuffer);
+					const FString Lower = Path.ToLower();
+					if (!Lower.Contains(TEXT("vid_16c0")))
+					{
+						continue;
+					}
+					FSindenMouse Mouse;
+					Mouse.Path = Path;
+					if (Lower.Contains(TEXT("pid_0f01"))) { Mouse.Pid = 0x0F01; Mouse.PlayerHint = 1; }
+					else if (Lower.Contains(TEXT("pid_0f02"))) { Mouse.Pid = 0x0F02; Mouse.PlayerHint = 2; }
+					else if (Lower.Contains(TEXT("pid_0f38"))) { Mouse.Pid = 0x0F38; Mouse.PlayerHint = 1; }
+					else if (Lower.Contains(TEXT("pid_0f39"))) { Mouse.Pid = 0x0F39; Mouse.PlayerHint = 2; }
+					else { continue; }
+					Mouse.ParentId = FLightgunDetector::ResolveUsbCompositeParent(Path);
+
+					// One gun can theoretically surface several mouse-class interfaces;
+					// collapse anything sharing a physical parent to a single entry.
+					const bool bDuplicate = !Mouse.ParentId.IsEmpty() && SindenMice.ContainsByPredicate(
+						[&Mouse](const FSindenMouse& Existing) { return Existing.ParentId == Mouse.ParentId; });
+					if (!bDuplicate)
+					{
+						SindenMice.Add(MoveTemp(Mouse));
 					}
 				}
 			}
-			SetupDiDestroyDeviceInfoList(DevInfo);
 		}
 
-		if (bSindenHidPresent)
+		// Stable order: the software's "Lightgun A" (P1-model PIDs) first, then by path.
+		SindenMice.Sort([](const FSindenMouse& A, const FSindenMouse& B)
 		{
+			return A.PlayerHint != B.PlayerHint ? A.PlayerHint < B.PlayerHint : A.Path < B.Path;
+		});
+		// Two same-model guns: the software still assigns one A and one B - guess by
+		// list order and let the range's Swap button fix a wrong guess.
+		if (SindenMice.Num() >= 2 && SindenMice[0].PlayerHint == SindenMice[1].PlayerHint)
+		{
+			SindenMice[1].PlayerHint = SindenMice[0].PlayerHint == 1 ? 2 : 1;
+		}
+
+		const bool bSoftwareRunning = SindenMice.Num() > 0 ? IsSindenSoftwareRunning() : false;
+		for (int32 Index = 0; Index < SindenMice.Num(); ++Index)
+		{
+			const FSindenMouse& Mouse = SindenMice[Index];
 			FDetectedLightgun Gun;
 			Gun.Model = ELightgunModel::Sinden;
 			Gun.Vid = 0x16C0;
-			Gun.Pid = SindenPid;
+			Gun.Pid = Mouse.Pid;
+			Gun.PlayerHint = Mouse.PlayerHint;
 			Gun.bRecoilCapable = true;
-			Gun.DisplayName = TEXT("Sinden Lightgun");
-			if (!IsSindenSoftwareRunning())
+			Gun.RawInputMousePath = Mouse.Path;
+			Gun.UsbCompositeParentId = Mouse.ParentId;
+			Gun.DisplayName = SindenMice.Num() == 1
+				? TEXT("Sinden Lightgun")
+				: FString::Printf(TEXT("Sinden Lightgun %c (PID %04X)"), Mouse.PlayerHint == 1 ? TEXT('A') : TEXT('B'), Mouse.Pid);
+			if (!bSoftwareRunning)
 			{
 				Gun.DetectionNote = TEXT("Sinden software is NOT running - start it (aiming and recoil both need it).");
 			}

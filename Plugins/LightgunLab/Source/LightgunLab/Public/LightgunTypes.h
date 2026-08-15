@@ -74,6 +74,20 @@ struct LIGHTGUNLAB_API FDetectedLightgun
 	/** Caveats surfaced to the UI, e.g. "USB ID match unverified" or "Sinden software not running". */
 	UPROPERTY(BlueprintReadOnly, Category = "Lightgun")
 	FString DetectionNote;
+
+	/** Raw Input device interface path of this gun's HID mouse, when detection saw it directly
+	    (Sinden). Lets the 2P router match WM_INPUT hDevice exactly, even for identical PIDs. */
+	UPROPERTY(BlueprintReadOnly, Category = "Lightgun")
+	FString RawInputMousePath;
+
+	/** Device instance ID of the physical USB (composite) device, e.g. "USB\VID_2341&PID_8046\HIDPC".
+	    For serial guns this ties the COM port to its sibling HID mouse interface so two identical
+	    guns can still be told apart per-device. Empty when the walk failed. */
+	UPROPERTY(BlueprintReadOnly, Category = "Lightgun")
+	FString UsbCompositeParentId;
 };
+
+/** Number of local player slots the plugin supports (v0.4: two guns, one PC). */
+inline constexpr int32 LightgunMaxPlayers = 2;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogLightgunLab, Log, All);

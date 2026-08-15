@@ -47,3 +47,11 @@ public:
 
 /** Creates the right backend for a detected gun, or null for models without a control channel. */
 TSharedPtr<IRecoilBackend> MakeRecoilBackend(const FDetectedLightgun& Gun);
+
+/**
+ * Pins the process-wide Sinden recoil-server TCP connection (bench law: exactly ONE
+ * connection ever - churn or reconnects wedge the server until the software restarts).
+ * All Sinden backends share it with per-player command prefixes; the subsystem holds
+ * one of these for the whole session so gun reselection never closes the socket.
+ */
+TSharedPtr<class FSindenSharedConnection> PinSindenConnection();

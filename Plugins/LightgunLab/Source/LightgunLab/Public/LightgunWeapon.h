@@ -23,8 +23,9 @@ class LIGHTGUNLAB_API ULightgunWeapon : public UObject
 	GENERATED_BODY()
 
 public:
+	/** PlayerIndex picks the gun slot this weapon feeds (0 = P1, the 1P default). */
 	UFUNCTION(BlueprintCallable, Category = "Lightgun|Weapon")
-	void Initialize(ULightgunSubsystem* InSubsystem);
+	void Initialize(ULightgunSubsystem* InSubsystem, int32 InPlayerIndex = 0);
 
 	/** Live round: spends ammo + fires recoil, returns true. Empty: dry-fire feedback, returns false. */
 	UFUNCTION(BlueprintCallable, Category = "Lightgun|Weapon")
@@ -59,4 +60,5 @@ private:
 	TObjectPtr<ULightgunSubsystem> Subsystem;
 
 	int32 Ammo = 0;
+	int32 PlayerIndex = 0;
 };

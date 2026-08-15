@@ -34,7 +34,8 @@ public class LightgunLab : ModuleRules
 			{
 				"SetupAPI.lib",
 				"Advapi32.lib",
-				"User32.lib"
+				"User32.lib",
+				"Cfgmgr32.lib"
 			});
 		}
 	}

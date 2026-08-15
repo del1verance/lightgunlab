@@ -11,6 +11,8 @@
 class IRecoilBackend;
 class FMameOutputServer;
 class FMameWindowBroadcaster;
+class FLightgunRawInputRouter;
+class FSindenSharedConnection;
 class ULightgunBorderWidget;
 class ULightgunStartupPanel;
 class ULightgunOptionsPanel;
@@ -20,9 +22,14 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLightgunStatusChanged);
 
 /**
  * Game-facing lightgun API. The weapon code only reports what happened
- * (live shot / dry fire / ammo count); this subsystem routes it to the active
- * gun backend and/or the MAME-compatible output emitters. The ammo gate lives
- * in the caller: FireRecoil() for live rounds, NotifyEmpty() for dry fire.
+ * (live shot / dry fire / ammo count); this subsystem routes it to the right
+ * player's gun backend and/or the MAME-compatible output emitters. The ammo
+ * gate lives in the caller: FireRecoil() for live rounds, NotifyEmpty() for
+ * dry fire.
+ *
+ * v0.4: two player slots. The 1P API below is unchanged and routes to player 0;
+ * the ForPlayer variants address a slot explicitly. In two-player mode the aim
+ * test range takes input from the Raw Input router instead of the merged cursor.
  */
 UCLASS()
 class LIGHTGUNLAB_API ULightgunSubsystem : public UGameInstanceSubsystem
@@ -35,7 +42,7 @@ public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
-	// --- Detection / selection ---
+	// --- Detection / selection (1P API = player 0) ---
 
 	UFUNCTION(BlueprintCallable, Category = "Lightgun")
 	void ScanForLightguns();
@@ -50,55 +57,129 @@ public:
 	void SelectMouseOnly();
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Lightgun")
-	bool HasActiveGun() const { return ActiveGunIndex != INDEX_NONE; }
+	bool HasActiveGun() const { return HasActiveGunForPlayer(0); }
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Lightgun")
-	FDetectedLightgun GetActiveGun() const;
+	FDetectedLightgun GetActiveGun() const { return GetActiveGunForPlayer(0); }
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Lightgun")
-	FString GetStatusSummary() const;
+	FString GetStatusSummary() const { return GetStatusSummaryForPlayer(0); }
+
+	// --- Two players, one PC ---
+
+	/** Switches modes. Leaving 2P tears down P2's backend and stops the raw router. */
+	UFUNCTION(BlueprintCallable, Category = "Lightgun|TwoPlayer")
+	void SetTwoPlayerMode(bool bEnabled);
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Lightgun|TwoPlayer")
+	bool IsTwoPlayerMode() const;
+
+	/** PlayerIndex 0/1. Refuses the gun the other active slot already holds. */
+	UFUNCTION(BlueprintCallable, Category = "Lightgun|TwoPlayer")
+	bool SelectGunForPlayer(int32 PlayerIndex, int32 Index);
+
+	/** Player 0: legacy "mouse only". Player 1: the "Desktop mouse (aim only)" pick. */
+	UFUNCTION(BlueprintCallable, Category = "Lightgun|TwoPlayer")
+	void SelectMouseForPlayer(int32 PlayerIndex);
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Lightgun|TwoPlayer")
+	bool HasActiveGunForPlayer(int32 PlayerIndex) const;
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Lightgun|TwoPlayer")
+	FDetectedLightgun GetActiveGunForPlayer(int32 PlayerIndex) const;
+
+	/** True when the slot's pick is the aim-only desktop mouse. */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Lightgun|TwoPlayer")
+	bool IsPlayerDesktopMouse(int32 PlayerIndex) const;
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Lightgun|TwoPlayer")
+	FString GetStatusSummaryForPlayer(int32 PlayerIndex) const;
+
+	/**
+	 * Swaps the two player assignments wholesale (guns, backends, control state).
+	 * The bench fix for "my crosshair kicks the other gun" when identical hardware
+	 * or the Sinden software's A/B order was guessed wrong.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Lightgun|TwoPlayer")
+	void SwapPlayers();
+
+	/** Enters game control for every active slot and starts the raw router (2P confirm). */
+	void StartTwoPlayerSession();
+
+	/** The raw router, alive during a 2P session. Null in 1P / before confirm / off-Windows. */
+	TSharedPtr<FLightgunRawInputRouter> GetRawRouter() const { return RawRouter; }
 
 	// --- Control lifecycle ---
 
 	/** Seize the gun's feedback channel (call at match start; startup panel does it on confirm). */
 	UFUNCTION(BlueprintCallable, Category = "Lightgun")
-	void BeginGameControl();
+	void BeginGameControl() { BeginGameControlForPlayer(0); }
 
 	/** Return the gun to self-control (call at match end; automatic on shutdown). */
 	UFUNCTION(BlueprintCallable, Category = "Lightgun")
-	void EndGameControl();
+	void EndGameControl() { EndGameControlForPlayer(0); }
+
+	UFUNCTION(BlueprintCallable, Category = "Lightgun|TwoPlayer")
+	void BeginGameControlForPlayer(int32 PlayerIndex);
+
+	UFUNCTION(BlueprintCallable, Category = "Lightgun|TwoPlayer")
+	void EndGameControlForPlayer(int32 PlayerIndex);
 
 	// --- Game events (the ammo gate is the caller's job) ---
 
 	/** A live round fired: recoil now. */
 	UFUNCTION(BlueprintCallable, Category = "Lightgun")
-	void FireRecoil();
+	void FireRecoil() { FireRecoilForPlayer(0); }
 
 	/** Trigger pulled on an empty magazine: no solenoid; RS3 gets Z0, Sinden gets the soft empty-chamber clunk. */
 	UFUNCTION(BlueprintCallable, Category = "Lightgun")
-	void NotifyEmpty();
+	void NotifyEmpty() { NotifyEmptyForPlayer(0); }
 
 	/** Feed the live ammo count (drives P{n}_Ammo output + OpenFIRE OLED). */
 	UFUNCTION(BlueprintCallable, Category = "Lightgun")
-	void SetAmmo(int32 Count);
+	void SetAmmo(int32 Count) { SetAmmoForPlayer(0, Count); }
 
 	UFUNCTION(BlueprintCallable, Category = "Lightgun")
-	void SetLife(int32 Value);
+	void SetLife(int32 Value) { SetLifeForPlayer(0, Value); }
 
 	/** Player took damage: rumble pulse + P{n}_Damaged output. */
 	UFUNCTION(BlueprintCallable, Category = "Lightgun")
-	void NotifyDamaged();
+	void NotifyDamaged() { NotifyDamagedForPlayer(0); }
 
 	UFUNCTION(BlueprintCallable, Category = "Lightgun")
-	void RumblePulse();
+	void RumblePulse() { RumblePulseForPlayer(0); }
 
 	/** Raw gun effect passthrough, e.g. Sinden "T2200" shotgun rack. */
 	UFUNCTION(BlueprintCallable, Category = "Lightgun")
-	void PlayGunEffect(const FString& Effect);
+	void PlayGunEffect(const FString& Effect) { PlayGunEffectForPlayer(0, Effect); }
 
 	/** Enters control if needed and fires one recoil — wired to the Test Fire buttons. */
 	UFUNCTION(BlueprintCallable, Category = "Lightgun")
-	void TestFire();
+	void TestFire() { TestFireForPlayer(0); }
+
+	UFUNCTION(BlueprintCallable, Category = "Lightgun|TwoPlayer")
+	void FireRecoilForPlayer(int32 PlayerIndex);
+
+	UFUNCTION(BlueprintCallable, Category = "Lightgun|TwoPlayer")
+	void NotifyEmptyForPlayer(int32 PlayerIndex);
+
+	UFUNCTION(BlueprintCallable, Category = "Lightgun|TwoPlayer")
+	void SetAmmoForPlayer(int32 PlayerIndex, int32 Count);
+
+	UFUNCTION(BlueprintCallable, Category = "Lightgun|TwoPlayer")
+	void SetLifeForPlayer(int32 PlayerIndex, int32 Value);
+
+	UFUNCTION(BlueprintCallable, Category = "Lightgun|TwoPlayer")
+	void NotifyDamagedForPlayer(int32 PlayerIndex);
+
+	UFUNCTION(BlueprintCallable, Category = "Lightgun|TwoPlayer")
+	void RumblePulseForPlayer(int32 PlayerIndex);
+
+	UFUNCTION(BlueprintCallable, Category = "Lightgun|TwoPlayer")
+	void PlayGunEffectForPlayer(int32 PlayerIndex, const FString& Effect);
+
+	UFUNCTION(BlueprintCallable, Category = "Lightgun|TwoPlayer")
+	void TestFireForPlayer(int32 PlayerIndex);
 
 	// --- Options ---
 
@@ -143,23 +224,39 @@ public:
 	FOnLightgunStatusChanged OnStatusChanged;
 
 private:
-	void EmitOutput(const FString& ShortName, int32 Value);
-	void EmitOutputPulse(const FString& ShortName);
+	struct FPlayerSlot
+	{
+		int32 GunIndex = INDEX_NONE;
+		/** The explicit aim-only desktop mouse pick (2P). */
+		bool bDesktopMouse = false;
+		TSharedPtr<IRecoilBackend> Backend;
+		bool bInControl = false;
+		FString LastError;
+	};
+
+	void EmitOutput(int32 PlayerIndex, const FString& ShortName, int32 Value);
+	void EmitOutputPulse(int32 PlayerIndex, const FString& ShortName);
 	void StartOutputServersIfEnabled();
 	void StopOutputServers();
-	void TeardownBackend();
+	void TeardownBackend(int32 PlayerIndex);
 	void RestoreSavedSelection();
-	FString PlayerPrefixed(const FString& ShortName) const;
+	void PersistSlotPrefs(int32 PlayerIndex);
+	void UpdateBorderForTwoPlayer();
+	void PushRouterBindings();
+	FString PlayerPrefixed(int32 PlayerIndex, const FString& ShortName) const;
+	bool IsValidPlayer(int32 PlayerIndex) const { return PlayerIndex >= 0 && PlayerIndex < LightgunMaxPlayers; }
 
 	TArray<FDetectedLightgun> DetectedGuns;
-	int32 ActiveGunIndex = INDEX_NONE;
-	bool bInGameControl = false;
+	FPlayerSlot Slots[LightgunMaxPlayers];
 	bool bStartupPanelShown = false;
-	FString LastError;
 
-	TSharedPtr<IRecoilBackend> Backend;
 	TSharedPtr<FMameOutputServer> TcpOutputs;
 	TSharedPtr<FMameWindowBroadcaster> WindowOutputs;
+	TSharedPtr<FLightgunRawInputRouter> RawRouter;
+
+	/** Pins the single process-wide Sinden TCP connection for the whole session so
+	    backend churn (reselects, swaps, mode switches) never closes the socket. */
+	TSharedPtr<FSindenSharedConnection> SindenKeepalive;
 
 	UPROPERTY(Transient)
 	TObjectPtr<ULightgunBorderWidget> BorderWidget;
