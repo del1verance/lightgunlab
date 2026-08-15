@@ -31,7 +31,10 @@ protected:
 	void OnConfirmClicked();
 
 	UFUNCTION()
-	void OnTestFireClicked();
+	void OnTestRecoilClicked();
+
+	UFUNCTION()
+	void OnTestVibrationClicked();
 
 	UFUNCTION()
 	void OnRescanClicked();
@@ -52,10 +55,16 @@ protected:
 	void OnP2SelectionChanged(FString SelectedItem, ESelectInfo::Type SelectionType);
 
 	UFUNCTION()
-	void OnP1TestClicked();
+	void OnP1TestRecoilClicked();
 
 	UFUNCTION()
-	void OnP2TestClicked();
+	void OnP1TestVibrationClicked();
+
+	UFUNCTION()
+	void OnP2TestRecoilClicked();
+
+	UFUNCTION()
+	void OnP2TestVibrationClicked();
 
 	UFUNCTION()
 	void OnConfirmTwoPlayerClicked();

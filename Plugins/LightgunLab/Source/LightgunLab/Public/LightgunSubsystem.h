@@ -193,6 +193,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Lightgun|TwoPlayer")
 	void TestFireForPlayer(int32 PlayerIndex);
 
+	/** Enters control if needed and buzzes the rumble motor (Sinden: its soft solenoid tap). */
+	UFUNCTION(BlueprintCallable, Category = "Lightgun|TwoPlayer")
+	void TestVibrationForPlayer(int32 PlayerIndex);
+
 	// --- Options ---
 
 	UFUNCTION(BlueprintCallable, Category = "Lightgun")

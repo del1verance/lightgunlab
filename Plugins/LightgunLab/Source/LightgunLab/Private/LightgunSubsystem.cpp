@@ -608,6 +608,12 @@ void ULightgunSubsystem::TestFireForPlayer(int32 PlayerIndex)
 	FireRecoilForPlayer(PlayerIndex);
 }
 
+void ULightgunSubsystem::TestVibrationForPlayer(int32 PlayerIndex)
+{
+	BeginGameControlForPlayer(PlayerIndex);
+	RumblePulseForPlayer(PlayerIndex);
+}
+
 void ULightgunSubsystem::SetRecoilMode(ERecoilMode Mode)
 {
 	ULightgunSettings* Settings = GetMutableDefault<ULightgunSettings>();

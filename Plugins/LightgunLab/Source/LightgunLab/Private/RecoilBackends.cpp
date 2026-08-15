@@ -31,13 +31,16 @@ namespace
 		switch (Model)
 		{
 		case ELightgunModel::Gun4IR:
-			// Official User Guide v1.2 pp.20-21. Solenoid is pulse-only in firmware.
+			// Official User Guide v1.2 pp.20-21. F<chan>.<state>.<val>: state 0/1/2 =
+			// off/on/pulses, val = strength (on) or pulse COUNT (pulse mode). Solenoid
+			// is pulse-only in firmware; one solenoid pulse is a kick, but one rumble
+			// pulse is an imperceptible blip (bench 2026-08-15) - buzz 3 pulses.
 			D.Name = TEXT("GUN4IR");
 			D.Baud = 9600;
 			D.Enter = TEXT("S6");
 			D.Exit = TEXT("E");
 			D.Fire = TEXT("F0.2.1");
-			D.Rumble = TEXT("F1.2.1");
+			D.Rumble = TEXT("F1.2.3");
 			break;
 		case ELightgunModel::OpenFIRE:
 			// OpenFIRE-Firmware OpenFIREserial.cpp; MAMEHooker-convention 'x' separators.
@@ -46,7 +49,7 @@ namespace
 			D.Enter = TEXT("S6");
 			D.Exit = TEXT("E");
 			D.Fire = TEXT("F0x2x1");
-			D.Rumble = TEXT("F1x2x1");
+			D.Rumble = TEXT("F1x2x3"); // pulse mode, 3 pulses (1 = imperceptible; see GUN4IR note)
 			if (Settings.bOpenFireAmmoDisplay)
 			{
 				D.AmmoPrefix = TEXT("FDA");

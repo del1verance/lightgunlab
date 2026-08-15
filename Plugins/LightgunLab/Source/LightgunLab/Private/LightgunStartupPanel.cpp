@@ -105,10 +105,15 @@ void ULightgunStartupPanel::NativeOnInitialized()
 	ConfirmButton->OnClicked.AddDynamic(this, &ULightgunStartupPanel::OnConfirmClicked);
 	Buttons->AddChildToHorizontalBox(ConfirmButton);
 
-	UButton* TestButton = MakePanelButton(WidgetTree, TEXT("  Test fire  "));
-	TestButton->OnClicked.AddDynamic(this, &ULightgunStartupPanel::OnTestFireClicked);
-	UHorizontalBoxSlot* TestSlot = Buttons->AddChildToHorizontalBox(TestButton);
-	TestSlot->SetPadding(FMargin(10.f, 0.f, 0.f, 0.f));
+	UButton* TestRecoilButton = MakePanelButton(WidgetTree, TEXT("  Test recoil  "));
+	TestRecoilButton->OnClicked.AddDynamic(this, &ULightgunStartupPanel::OnTestRecoilClicked);
+	UHorizontalBoxSlot* TestRecoilSlot = Buttons->AddChildToHorizontalBox(TestRecoilButton);
+	TestRecoilSlot->SetPadding(FMargin(10.f, 0.f, 0.f, 0.f));
+
+	UButton* TestVibrationButton = MakePanelButton(WidgetTree, TEXT("  Test vibration  "));
+	TestVibrationButton->OnClicked.AddDynamic(this, &ULightgunStartupPanel::OnTestVibrationClicked);
+	UHorizontalBoxSlot* TestVibrationSlot = Buttons->AddChildToHorizontalBox(TestVibrationButton);
+	TestVibrationSlot->SetPadding(FMargin(10.f, 0.f, 0.f, 0.f));
 
 	UButton* RescanButton = MakePanelButton(WidgetTree, TEXT("  Rescan  "));
 	RescanButton->OnClicked.AddDynamic(this, &ULightgunStartupPanel::OnRescanClicked);
@@ -154,18 +159,26 @@ void ULightgunStartupPanel::NativeOnInitialized()
 		UVerticalBoxSlot* ComboSlot = PlayerBox->AddChildToVerticalBox(PlayerCombos[Player]);
 		ComboSlot->SetPadding(FMargin(0.f, 6.f, 0.f, 0.f));
 
-		UButton* PlayerTest = MakePanelButton(WidgetTree, TEXT("  Test fire  "));
+		UHorizontalBox* TestRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		UVerticalBoxSlot* TestRowSlot = PlayerBox->AddChildToVerticalBox(TestRow);
+		TestRowSlot->SetPadding(FMargin(0.f, 8.f, 0.f, 0.f));
+		TestRowSlot->SetHorizontalAlignment(HAlign_Left);
+
+		UButton* PlayerTestRecoil = MakePanelButton(WidgetTree, TEXT("  Test recoil  "));
+		UButton* PlayerTestVibration = MakePanelButton(WidgetTree, TEXT("  Test vibration  "));
 		if (Player == 0)
 		{
-			PlayerTest->OnClicked.AddDynamic(this, &ULightgunStartupPanel::OnP1TestClicked);
+			PlayerTestRecoil->OnClicked.AddDynamic(this, &ULightgunStartupPanel::OnP1TestRecoilClicked);
+			PlayerTestVibration->OnClicked.AddDynamic(this, &ULightgunStartupPanel::OnP1TestVibrationClicked);
 		}
 		else
 		{
-			PlayerTest->OnClicked.AddDynamic(this, &ULightgunStartupPanel::OnP2TestClicked);
+			PlayerTestRecoil->OnClicked.AddDynamic(this, &ULightgunStartupPanel::OnP2TestRecoilClicked);
+			PlayerTestVibration->OnClicked.AddDynamic(this, &ULightgunStartupPanel::OnP2TestVibrationClicked);
 		}
-		UVerticalBoxSlot* TestFireSlot = PlayerBox->AddChildToVerticalBox(PlayerTest);
-		TestFireSlot->SetPadding(FMargin(0.f, 8.f, 0.f, 0.f));
-		TestFireSlot->SetHorizontalAlignment(HAlign_Left);
+		TestRow->AddChildToHorizontalBox(PlayerTestRecoil);
+		UHorizontalBoxSlot* VibrationSlot = TestRow->AddChildToHorizontalBox(PlayerTestVibration);
+		VibrationSlot->SetPadding(FMargin(8.f, 0.f, 0.f, 0.f));
 	}
 
 	UHorizontalBox* TwoPlayerButtons = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
@@ -516,7 +529,7 @@ bool ULightgunStartupPanel::ApplyPickForPlayer(int32 PlayerIndex)
 	return Lightgun->SelectGunForPlayer(PlayerIndex, GunIndex);
 }
 
-void ULightgunStartupPanel::OnP1TestClicked()
+void ULightgunStartupPanel::OnP1TestRecoilClicked()
 {
 	if (ULightgunSubsystem* Lightgun = GetLightgun())
 	{
@@ -528,13 +541,37 @@ void ULightgunStartupPanel::OnP1TestClicked()
 	}
 }
 
-void ULightgunStartupPanel::OnP2TestClicked()
+void ULightgunStartupPanel::OnP1TestVibrationClicked()
+{
+	if (ULightgunSubsystem* Lightgun = GetLightgun())
+	{
+		if (ApplyPickForPlayer(0))
+		{
+			Lightgun->TestVibrationForPlayer(0);
+		}
+		RefreshTwoPlayerStatus();
+	}
+}
+
+void ULightgunStartupPanel::OnP2TestRecoilClicked()
 {
 	if (ULightgunSubsystem* Lightgun = GetLightgun())
 	{
 		if (ApplyPickForPlayer(1))
 		{
 			Lightgun->TestFireForPlayer(1);
+		}
+		RefreshTwoPlayerStatus();
+	}
+}
+
+void ULightgunStartupPanel::OnP2TestVibrationClicked()
+{
+	if (ULightgunSubsystem* Lightgun = GetLightgun())
+	{
+		if (ApplyPickForPlayer(1))
+		{
+			Lightgun->TestVibrationForPlayer(1);
 		}
 		RefreshTwoPlayerStatus();
 	}
@@ -583,12 +620,22 @@ void ULightgunStartupPanel::OnConfirmClicked()
 	}
 }
 
-void ULightgunStartupPanel::OnTestFireClicked()
+void ULightgunStartupPanel::OnTestRecoilClicked()
 {
 	if (ULightgunSubsystem* Lightgun = GetLightgun())
 	{
 		ApplyComboSelection();
 		Lightgun->TestFire();
+		StatusText->SetText(FText::FromString(Lightgun->GetStatusSummary()));
+	}
+}
+
+void ULightgunStartupPanel::OnTestVibrationClicked()
+{
+	if (ULightgunSubsystem* Lightgun = GetLightgun())
+	{
+		ApplyComboSelection();
+		Lightgun->TestVibrationForPlayer(0);
 		StatusText->SetText(FText::FromString(Lightgun->GetStatusSummary()));
 	}
 }
