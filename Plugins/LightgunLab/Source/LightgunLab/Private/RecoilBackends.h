@@ -31,8 +31,8 @@ public:
 	/** Hammer down on an empty magazine. Default: nothing (silence = authentic for most guns). */
 	virtual void NotifyEmpty() {}
 
-	/** Magazine refilled. Default: nothing. Guns with a real rumble motor buzz;
-	    the solenoid must stay quiet - recoil only ever means a live round. */
+	/** Magazine refilled. Default: nothing. Rumble-motor guns buzz; the Sinden
+	    gives its lightest solenoid tap. Never a real kick - recoil means a live round. */
 	virtual void NotifyReloaded() {}
 
 	/** Live ammo count changed (OpenFIRE OLED, future Blamcon counter). */
@@ -51,6 +51,13 @@ public:
 
 /** Creates the right backend for a detected gun, or null for models without a control channel. */
 TSharedPtr<IRecoilBackend> MakeRecoilBackend(const FDetectedLightgun& Gun);
+
+/** True when the model can fire a game-controlled solenoid/slide kick. */
+bool ModelSupportsRecoil(ELightgunModel Model);
+
+/** True when the model has a real rumble/vibration motor channel.
+    (The Sinden's soft solenoid tap is recoil hardware, not vibration.) */
+bool ModelSupportsVibration(ELightgunModel Model);
 
 /**
  * Pins the process-wide Sinden recoil-server TCP connection (bench law: exactly ONE

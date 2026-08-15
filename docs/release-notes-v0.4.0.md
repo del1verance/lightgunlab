@@ -7,9 +7,9 @@ Two lightguns on the same PC at the same time — ANY mix: Sinden + GUN4IR, two 
 - **One Sinden TCP connection, ever** — all Sinden recoil rides a single shared, paced socket with per-player `1`/`2` prefixes matching the software's Lightgun A/B assignment; per-player fire runs still collapse into gun-paced `T` bursts, and reselects/swaps/mode switches never reconnect (the connection-churn wedge can't happen).
 - **Every physical Sinden detected separately** (PIDs 0F01/0F02/0F38/0F39 with A/B hints) so two-Sinden rigs pick per-gun.
 - **1P aim locked to the selected gun** — with a gun chosen, the range runs off the same per-device raw routing even in single player, so a spare gun or extra mouse on the desk can no longer steer the crosshair. Mouse-only play keeps the classic merged-cursor path.
-- **Seats fill themselves** — detecting two guns opens the setup panel in two-player mode, and guns that declare their seat (GUN4IR P1/P2 PIDs, Sinden A/B models) are pre-assigned to it. Each seat gets its own **Test recoil** and **Test vibration** buttons.
+- **Seats fill themselves** — detecting two guns opens the setup panel in two-player mode, and guns that declare their seat (GUN4IR P1/P2 PIDs, Sinden A/B models) are pre-assigned to it. Each seat gets its own **Test recoil** and **Test vibration** buttons, greyed out when the picked device lacks that hardware (desktop mouse: both).
 - **Shootable UI** — in any gun session the range's buttons (Back / Crosshair / Swap) are pressed by *shooting* them: each gun's own aim point decides (the mouse player's click works the same way), it costs no ammo, and the press rings in the shooter's color.
-- **Reload feel, done right** — reload never fires the solenoid (recoil only ever means a live round); guns with a real rumble motor (GUN4IR, OpenFIRE, Blamcon, RS3) buzz on reload instead, and the Sinden — whose only actuator is the solenoid — stays silent.
+- **Reload feel, done right** — reload never fires a real kick (recoil only ever means a live round); guns with a rumble motor (GUN4IR, OpenFIRE, Blamcon, RS3) buzz on reload, and the Sinden — solenoid-only hardware — marks it with its lightest possible tap.
 - **Per-player API** — `FireRecoilForPlayer()`, `NotifyReloadedForPlayer()` & friends beside the unchanged 1P API; outputs emit `P1_*`/`P2_*` per seat in 2P for dual-gun hooker rigs.
 
 ## Install

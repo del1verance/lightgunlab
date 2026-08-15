@@ -202,9 +202,11 @@ namespace
 
 		virtual void FireRecoil() override  { Send(TEXT("A")); }
 		virtual void NotifyEmpty() override { Send(TEXT("U") + FString::FromInt(EmptyStrength)); }
-		// No NotifyReloaded override: the Sinden's only actuator IS the solenoid,
-		// and reload must stay silent (its "rumble" U command is a soft hammer hit).
-		virtual void RumblePulse() override { Send(TEXT("U") + FString::FromInt(FMath::Min(EmptyStrength + 2, 10))); }
+		// The Sinden has no rumble motor; its "vibration" is the lightest possible
+		// solenoid tap (U1) - clearly distinct from a real kick (A) and from the
+		// stronger dry-fire clunk (U4 default).
+		virtual void NotifyReloaded() override { Send(TEXT("U1")); }
+		virtual void RumblePulse() override { Send(TEXT("U1")); }
 		virtual void PlayEffect(const FString& E) override { Send(E); }
 
 		virtual bool IsHealthy() const override;
@@ -464,5 +466,38 @@ TSharedPtr<IRecoilBackend> MakeRecoilBackend(const FDetectedLightgun& Gun)
 		return MakeShared<FSindenTcpBackend>();
 	default:
 		return nullptr;
+	}
+}
+
+bool ModelSupportsRecoil(ELightgunModel Model)
+{
+	switch (Model)
+	{
+	case ELightgunModel::Gun4IR:
+	case ELightgunModel::OpenFIRE:
+	case ELightgunModel::Blamcon:
+	case ELightgunModel::RS3Reaper:
+	case ELightgunModel::Sinden:
+		return true;
+	default:
+		return false;
+	}
+}
+
+bool ModelSupportsVibration(ELightgunModel Model)
+{
+	// Rumble-motor channels: GUN4IR/OpenFIRE F1, Blamcon FB.1, RS3 ZZ. The
+	// Sinden has no motor but counts too: its vibration is the lightest
+	// possible solenoid tap (U1).
+	switch (Model)
+	{
+	case ELightgunModel::Gun4IR:
+	case ELightgunModel::OpenFIRE:
+	case ELightgunModel::Blamcon:
+	case ELightgunModel::RS3Reaper:
+	case ELightgunModel::Sinden:
+		return true;
+	default:
+		return false;
 	}
 }

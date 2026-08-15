@@ -82,6 +82,8 @@ private:
 	bool IsMousePicked(int32 PlayerIndex) const;
 	bool ApplyPickForPlayer(int32 PlayerIndex);
 	void RefreshTwoPlayerStatus();
+	/** Greys out Test recoil / Test vibration wherever the picked device lacks the hardware. */
+	void UpdateTestButtonEnableStates();
 
 	UPROPERTY(Transient) TObjectPtr<UComboBoxString> GunCombo;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> StatusText;
@@ -92,6 +94,11 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UVerticalBox> TwoPlayerSection;
 	UPROPERTY(Transient) TObjectPtr<UComboBoxString> PlayerCombos[2];
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> TwoPlayerNote;
+
+	UPROPERTY(Transient) TObjectPtr<UButton> TestRecoilButton;
+	UPROPERTY(Transient) TObjectPtr<UButton> TestVibrationButton;
+	UPROPERTY(Transient) TObjectPtr<UButton> PlayerTestRecoilButtons[2];
+	UPROPERTY(Transient) TObjectPtr<UButton> PlayerTestVibrationButtons[2];
 
 	TArray<int32> ComboToGunIndex;
 	int32 MouseOnlyComboIndex = INDEX_NONE;

@@ -3,6 +3,7 @@
 #include "LightgunStartupPanel.h"
 #include "LightgunSubsystem.h"
 #include "LightgunSettings.h"
+#include "RecoilBackends.h"
 
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
@@ -105,12 +106,12 @@ void ULightgunStartupPanel::NativeOnInitialized()
 	ConfirmButton->OnClicked.AddDynamic(this, &ULightgunStartupPanel::OnConfirmClicked);
 	Buttons->AddChildToHorizontalBox(ConfirmButton);
 
-	UButton* TestRecoilButton = MakePanelButton(WidgetTree, TEXT("  Test recoil  "));
+	TestRecoilButton = MakePanelButton(WidgetTree, TEXT("  Test recoil  "));
 	TestRecoilButton->OnClicked.AddDynamic(this, &ULightgunStartupPanel::OnTestRecoilClicked);
 	UHorizontalBoxSlot* TestRecoilSlot = Buttons->AddChildToHorizontalBox(TestRecoilButton);
 	TestRecoilSlot->SetPadding(FMargin(10.f, 0.f, 0.f, 0.f));
 
-	UButton* TestVibrationButton = MakePanelButton(WidgetTree, TEXT("  Test vibration  "));
+	TestVibrationButton = MakePanelButton(WidgetTree, TEXT("  Test vibration  "));
 	TestVibrationButton->OnClicked.AddDynamic(this, &ULightgunStartupPanel::OnTestVibrationClicked);
 	UHorizontalBoxSlot* TestVibrationSlot = Buttons->AddChildToHorizontalBox(TestVibrationButton);
 	TestVibrationSlot->SetPadding(FMargin(10.f, 0.f, 0.f, 0.f));
@@ -164,20 +165,20 @@ void ULightgunStartupPanel::NativeOnInitialized()
 		TestRowSlot->SetPadding(FMargin(0.f, 8.f, 0.f, 0.f));
 		TestRowSlot->SetHorizontalAlignment(HAlign_Left);
 
-		UButton* PlayerTestRecoil = MakePanelButton(WidgetTree, TEXT("  Test recoil  "));
-		UButton* PlayerTestVibration = MakePanelButton(WidgetTree, TEXT("  Test vibration  "));
+		PlayerTestRecoilButtons[Player] = MakePanelButton(WidgetTree, TEXT("  Test recoil  "));
+		PlayerTestVibrationButtons[Player] = MakePanelButton(WidgetTree, TEXT("  Test vibration  "));
 		if (Player == 0)
 		{
-			PlayerTestRecoil->OnClicked.AddDynamic(this, &ULightgunStartupPanel::OnP1TestRecoilClicked);
-			PlayerTestVibration->OnClicked.AddDynamic(this, &ULightgunStartupPanel::OnP1TestVibrationClicked);
+			PlayerTestRecoilButtons[Player]->OnClicked.AddDynamic(this, &ULightgunStartupPanel::OnP1TestRecoilClicked);
+			PlayerTestVibrationButtons[Player]->OnClicked.AddDynamic(this, &ULightgunStartupPanel::OnP1TestVibrationClicked);
 		}
 		else
 		{
-			PlayerTestRecoil->OnClicked.AddDynamic(this, &ULightgunStartupPanel::OnP2TestRecoilClicked);
-			PlayerTestVibration->OnClicked.AddDynamic(this, &ULightgunStartupPanel::OnP2TestVibrationClicked);
+			PlayerTestRecoilButtons[Player]->OnClicked.AddDynamic(this, &ULightgunStartupPanel::OnP2TestRecoilClicked);
+			PlayerTestVibrationButtons[Player]->OnClicked.AddDynamic(this, &ULightgunStartupPanel::OnP2TestVibrationClicked);
 		}
-		TestRow->AddChildToHorizontalBox(PlayerTestRecoil);
-		UHorizontalBoxSlot* VibrationSlot = TestRow->AddChildToHorizontalBox(PlayerTestVibration);
+		TestRow->AddChildToHorizontalBox(PlayerTestRecoilButtons[Player]);
+		UHorizontalBoxSlot* VibrationSlot = TestRow->AddChildToHorizontalBox(PlayerTestVibrationButtons[Player]);
 		VibrationSlot->SetPadding(FMargin(8.f, 0.f, 0.f, 0.f));
 	}
 
@@ -298,6 +299,7 @@ void ULightgunStartupPanel::Populate()
 	StatusText->SetText(FText::FromString(RealGuns > 0
 		? FString::Printf(TEXT("Detected %d lightgun(s). Confirm your gun, or pick a different device."), RealGuns)
 		: TEXT("No lightgun detected. Plug one in and rescan, or play with the mouse.")));
+	UpdateTestButtonEnableStates();
 }
 
 void ULightgunStartupPanel::PopulateTwoPlayer(bool bKeepCurrentPicks)
@@ -467,8 +469,43 @@ void ULightgunStartupPanel::OnP2SelectionChanged(FString SelectedItem, ESelectIn
 	RefreshTwoPlayerStatus();
 }
 
+void ULightgunStartupPanel::UpdateTestButtonEnableStates()
+{
+	ULightgunSubsystem* Lightgun = GetLightgun();
+	if (!Lightgun)
+	{
+		return;
+	}
+	const TArray<FDetectedLightgun>& Guns = Lightgun->GetDetectedGuns();
+	auto SetButtonsForGun = [&Guns](UButton* Recoil, UButton* Vibration, int32 GunIndex)
+	{
+		const ELightgunModel Model = Guns.IsValidIndex(GunIndex) ? Guns[GunIndex].Model : ELightgunModel::None;
+		if (Recoil)
+		{
+			Recoil->SetIsEnabled(ModelSupportsRecoil(Model));
+		}
+		if (Vibration)
+		{
+			Vibration->SetIsEnabled(ModelSupportsVibration(Model));
+		}
+	};
+
+	// 1P: the single dropdown (mouse-only and unknown devices disable both).
+	const int32 OnePlayerCombo = GunCombo ? GunCombo->GetSelectedIndex() : INDEX_NONE;
+	SetButtonsForGun(TestRecoilButton, TestVibrationButton,
+		ComboToGunIndex.IsValidIndex(OnePlayerCombo) ? ComboToGunIndex[OnePlayerCombo] : INDEX_NONE);
+
+	// 2P: per player pick (the desktop mouse pick disables both).
+	for (int32 Player = 0; Player < 2; ++Player)
+	{
+		SetButtonsForGun(PlayerTestRecoilButtons[Player], PlayerTestVibrationButtons[Player], GetPickedGunIndex(Player));
+	}
+}
+
 void ULightgunStartupPanel::RefreshTwoPlayerStatus()
 {
+	UpdateTestButtonEnableStates();
+
 	ULightgunSubsystem* Lightgun = GetLightgun();
 	if (!Lightgun || !StatusText)
 	{
@@ -684,4 +721,5 @@ void ULightgunStartupPanel::OnGunSelectionChanged(FString SelectedItem, ESelectI
 	{
 		StatusText->SetText(FText::FromString(TEXT("Mouse aiming, no recoil hardware.")));
 	}
+	UpdateTestButtonEnableStates();
 }
