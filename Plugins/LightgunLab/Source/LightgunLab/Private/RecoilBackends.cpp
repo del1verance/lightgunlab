@@ -160,6 +160,7 @@ namespace
 			Prefix = FString::FromInt(FMath::Clamp(Settings.PlayerSlot, 1, 2));
 			Strength = FMath::Clamp(Settings.RecoilStrength, 0, 10);
 			EmptyStrength = FMath::Clamp(Settings.SindenEmptyChamberStrength, 0, 10);
+			MinGapSeconds = FMath::Clamp(Settings.SindenCommandGapMs, 15, 1000) / 1000.0;
 
 			if (!Connect(OutError))
 			{
@@ -173,6 +174,9 @@ namespace
 
 		virtual void EnterGameControl() override
 		{
+			// Fresh software instances start with recoil DISABLED (bench-confirmed
+			// 2026-08-15: without J1 every A command is silently ignored).
+			Send(Prefix + TEXT("J1"));                                   // recoil master ON
 			Send(Prefix + TEXT("K0"));                                   // our commands only, no trigger recoil
 			Send(Prefix + TEXT("D"));                                    // single-shot mode
 			Send(Prefix + TEXT("N") + FString::FromInt(Strength));       // strength
@@ -272,7 +276,7 @@ namespace
 		bool Pump(float)
 		{
 			const double Now = FPlatformTime::Seconds();
-			if (Now - LastSendTime < 0.015)
+			if (Now - LastSendTime < MinGapSeconds)
 			{
 				return true;
 			}
@@ -291,7 +295,7 @@ namespace
 			while (Outbox.Dequeue(Command))
 			{
 				SendNow(Command, FPlatformTime::Seconds());
-				FPlatformProcess::Sleep(0.015f);
+				FPlatformProcess::Sleep(static_cast<float>(MinGapSeconds));
 			}
 		}
 
@@ -325,6 +329,7 @@ namespace
 		int32 Strength = 8;
 		int32 EmptyStrength = 4;
 		bool bInControl = false;
+		double MinGapSeconds = 0.2;
 		double LastSendTime = 0.0;
 		double LastConnectAttempt = 0.0;
 		TQueue<FString, EQueueMode::Mpsc> Outbox;

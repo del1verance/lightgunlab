@@ -51,6 +51,11 @@ public:
 	UPROPERTY(config, EditAnywhere, BlueprintReadOnly, Category = "Sinden", meta = (ClampMin = "0", ClampMax = "10"))
 	int32 SindenEmptyChamberStrength = 4;
 
+	/** Minimum ms between commands to the Sinden recoil server. Its reader treats each receive as one
+	    command and chokes on merged messages; 200ms is bench-safe, lower at your own risk. */
+	UPROPERTY(config, EditAnywhere, BlueprintReadOnly, Category = "Sinden", meta = (ClampMin = "15", ClampMax = "1000"))
+	int32 SindenCommandGapMs = 200;
+
 	/** Show the white tracking border automatically whenever a Sinden is the active gun. */
 	UPROPERTY(config, EditAnywhere, BlueprintReadOnly, Category = "Sinden")
 	bool bBorderAutoShow = true;
