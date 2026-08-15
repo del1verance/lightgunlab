@@ -56,7 +56,7 @@ Players with an existing rig point their `lightgunlab.ini` at the game and every
 
 ## Status — v0.1
 
-Compiles clean; protocols implemented verbatim from vendor documentation. **Sinden recoil path validated on real hardware** (2026-08-15: detection IDs, TCP recoil server, hard fire / soft empty-chamber / pattern commands all confirmed against a live recoil gun). GUN4IR bench test and the in-engine pass are next; RS3/OpenFIRE/Blamcon backends built to spec and awaiting community confirmation. Known open items: RS3 VID/PID confirmation, OpenFIRE `FDA` value formatting, live MAMEHooker 5.1 window-message validation.
+Compiles clean; protocols implemented verbatim from vendor documentation. **Sinden: fully validated end-to-end in engine on real hardware** (2026-08-15: USB detection, startup picker, control seizure, paced TCP recoil, first-shot latency, empty-chamber soft fire, lifecycle handback — all bench-proven, with the pitfalls that surfaced documented under Known issues). GUN4IR bench test is next; RS3/OpenFIRE/Blamcon backends built to spec and awaiting community confirmation. Known open items: RS3 VID/PID confirmation, OpenFIRE `FDA` value formatting, live MAMEHooker 5.1 window-message validation.
 
 Licensed under the [MIT License](LICENSE).
 
