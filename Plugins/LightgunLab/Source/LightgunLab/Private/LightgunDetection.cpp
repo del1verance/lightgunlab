@@ -1,6 +1,7 @@
 // Copyright (c) 2026 del1verance. MIT License.
 
 #include "LightgunDetection.h"
+#include "LightgunSettings.h"
 
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
@@ -124,11 +125,29 @@ void FLightgunDetector::Scan(TArray<FDetectedLightgun>& OutGuns)
 				Gun.Pid = Pid;
 				Gun.bRecoilCapable = true;
 
-				if (Vid == 0x2341 && (Pid >= 0x8042 && Pid <= 0x8045))
+				const FLightgunIdOverride* Override = GetDefault<ULightgunSettings>()->IdOverrides.FindByPredicate(
+					[Vid, Pid](const FLightgunIdOverride& O) { return O.Vid == Vid && O.Pid == Pid; });
+
+				if (Override)
 				{
+					Gun.Model = Override->Model;
+					Gun.DisplayName = FString::Printf(TEXT("%s (%s, user mapping)"),
+						*StaticEnum<ELightgunModel>()->GetDisplayNameTextByValue(static_cast<int64>(Override->Model)).ToString(), *PortName);
+				}
+				else if (Vid == 0x2341 && (Pid & 0xFFF0) == 0x8040)
+				{
+					// GUN4IR firmware uses the 0x804x block; 8042/8043 are the community-
+					// documented P1/P2, but revisions differ (8046 seen on the bench).
 					Gun.Model = ELightgunModel::Gun4IR;
-					Gun.PlayerHint = (Pid - 0x8042) + 1;
-					Gun.DisplayName = FString::Printf(TEXT("GUN4IR (P%d, %s)"), Gun.PlayerHint, *PortName);
+					if (Pid >= 0x8042 && Pid <= 0x8045)
+					{
+						Gun.PlayerHint = (Pid - 0x8042) + 1;
+						Gun.DisplayName = FString::Printf(TEXT("GUN4IR (P%d, %s)"), Gun.PlayerHint, *PortName);
+					}
+					else
+					{
+						Gun.DisplayName = FString::Printf(TEXT("GUN4IR (%s, PID %04X)"), *PortName, Pid);
+					}
 				}
 				else if (Vid == 0xF143)
 				{

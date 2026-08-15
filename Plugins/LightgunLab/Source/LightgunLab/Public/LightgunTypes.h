@@ -25,6 +25,24 @@ enum class ERecoilMode : uint8
 	Disabled		UMETA(DisplayName = "Disabled")
 };
 
+/** User-configurable USB ID -> gun model mapping for hardware the built-in table doesn't know. */
+USTRUCT(BlueprintType)
+struct LIGHTGUNLAB_API FLightgunIdOverride
+{
+	GENERATED_BODY()
+
+	/** USB vendor id, e.g. 0x2341. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lightgun")
+	int32 Vid = 0;
+
+	/** USB product id, e.g. 0x8046. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lightgun")
+	int32 Pid = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lightgun")
+	ELightgunModel Model = ELightgunModel::Gun4IR;
+};
+
 USTRUCT(BlueprintType)
 struct LIGHTGUNLAB_API FDetectedLightgun
 {

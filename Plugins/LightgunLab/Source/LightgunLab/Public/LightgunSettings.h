@@ -97,4 +97,9 @@ public:
 	/** Send the live ammo count to OpenFIRE's OLED via the FDA display command. */
 	UPROPERTY(config, EditAnywhere, BlueprintReadOnly, Category = "Per-Gun")
 	bool bOpenFireAmmoDisplay = true;
+
+	/** Extra USB VID/PID -> model mappings, checked before the built-in table.
+	    For guns whose firmware ships identifiers we don't know yet. */
+	UPROPERTY(config, EditAnywhere, BlueprintReadOnly, Category = "Detection")
+	TArray<FLightgunIdOverride> IdOverrides;
 };
