@@ -17,6 +17,9 @@ Build/
 *.VC.opendb
 .vsconfig
 
+# Fab packaging output
+dist/
+
 # OS cruft
 Thumbs.db
 Desktop.ini

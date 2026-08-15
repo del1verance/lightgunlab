@@ -1,3 +1,5 @@
+// Copyright (c) 2026 del1verance. MIT License.
+
 #include "SindenBorderWidget.h"
 #include "Styling/CoreStyle.h"
 #include "Rendering/DrawElements.h"

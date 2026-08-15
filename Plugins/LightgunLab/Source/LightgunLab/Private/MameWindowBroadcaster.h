@@ -1,3 +1,5 @@
+// Copyright (c) 2026 del1verance. MIT License.
+
 #pragma once
 
 #include "CoreMinimal.h"

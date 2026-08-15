@@ -1,3 +1,5 @@
+// Copyright (c) 2026 del1verance. MIT License.
+
 #include "MameOutputServer.h"
 #include "LightgunTypes.h"
 

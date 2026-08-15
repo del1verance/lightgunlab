@@ -1,3 +1,5 @@
+// Copyright (c) 2026 del1verance. MIT License.
+
 #include "RecoilBackends.h"
 #include "LightgunSerialPort.h"
 #include "LightgunSettings.h"

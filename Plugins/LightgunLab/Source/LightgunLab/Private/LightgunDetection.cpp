@@ -1,3 +1,5 @@
+// Copyright (c) 2026 del1verance. MIT License.
+
 #include "LightgunDetection.h"
 
 #if PLATFORM_WINDOWS
