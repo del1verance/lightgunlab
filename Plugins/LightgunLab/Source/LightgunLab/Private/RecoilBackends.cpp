@@ -286,6 +286,24 @@ namespace
 			{
 				return true;
 			}
+			// Collapse a queued run of single fires into one T burst (count +
+			// inter-shot ms) so rapid trigger work isn't throttled to the TCP
+			// pacing gap - the gun paces the burst internally.
+			const FString FireCmd = Prefix + TEXT("A");
+			if (Command == FireCmd)
+			{
+				int32 Count = 1;
+				FString Next;
+				while (Count < 9 && Outbox.Peek(Next) && Next == FireCmd)
+				{
+					Outbox.Pop();
+					++Count;
+				}
+				if (Count > 1)
+				{
+					Command = FString::Printf(TEXT("%sT%d120"), *Prefix, Count);
+				}
+			}
 			SendNow(Command, Now);
 			return true;
 		}

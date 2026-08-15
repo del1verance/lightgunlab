@@ -131,6 +131,12 @@ FReply ULightgunCalibrationScreen::NativeOnMouseButtonDown(const FGeometry& InGe
 	return FReply::Handled();
 }
 
+FReply ULightgunCalibrationScreen::NativeOnMouseButtonDoubleClick(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	// Rapid trigger work arrives as double-click events; a shot is a shot.
+	return NativeOnMouseButtonDown(InGeometry, InMouseEvent);
+}
+
 FReply ULightgunCalibrationScreen::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
 	if (!InKeyEvent.IsRepeat())
