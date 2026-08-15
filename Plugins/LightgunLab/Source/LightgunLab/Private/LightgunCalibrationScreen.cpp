@@ -36,6 +36,7 @@ void ULightgunCalibrationScreen::NativeOnInitialized()
 	Super::NativeOnInitialized();
 	SetVisibility(ESlateVisibility::Visible);
 	SetIsFocusable(true);
+	SetCursor(EMouseCursor::None); // the painted crosshair is the only pointer here
 
 	Weapon = NewObject<ULightgunWeapon>(this);
 	Weapon->Initialize(GetLightgun());
@@ -74,12 +75,14 @@ void ULightgunCalibrationScreen::NativeOnInitialized()
 
 	UButton* BackButton = MakePanelButton(WidgetTree, TEXT("  Back to gun select  "));
 	BackButton->OnClicked.AddDynamic(this, &ULightgunCalibrationScreen::OnBackClicked);
+	BackButton->SetCursor(EMouseCursor::None);
 	Buttons->AddChildToHorizontalBox(BackButton);
 
 	UButton* CrosshairButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
 	CrosshairButtonLabel = MakePanelText(WidgetTree, TEXT("  Crosshair: ON  "), 12, true, FLinearColor(0.05f, 0.05f, 0.06f));
 	CrosshairButton->AddChild(CrosshairButtonLabel);
 	CrosshairButton->OnClicked.AddDynamic(this, &ULightgunCalibrationScreen::OnCrosshairToggleClicked);
+	CrosshairButton->SetCursor(EMouseCursor::None);
 	UHorizontalBoxSlot* CrosshairSlot = Buttons->AddChildToHorizontalBox(CrosshairButton);
 	CrosshairSlot->SetPadding(FMargin(12.f, 0.f, 0.f, 0.f));
 }
