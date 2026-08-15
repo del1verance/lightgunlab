@@ -60,9 +60,11 @@ Compiles clean; protocols implemented verbatim from vendor documentation. **Sind
 
 Licensed under the [MIT License](LICENSE).
 
-## Known issues
+## Known issues (Sinden, all bench-confirmed on V2.08b)
 
-- **Sinden recoil server can wedge.** The software's TCP recoil server stops servicing all clients (new connections sit unanswered in the OS backlog) if it ever receives merged/malformed messages — e.g. from a tool sending commands faster than ~150ms apart. Recovery: restart the Sinden software. This plugin defends itself (single connection per session, paced commands, `J1` recoil-enable on entry), but other tools sharing the server can still trip it.
+- **Don't start the recoil server with the `tcpserver` launch argument.** It races the gun connection at app boot: the server binds and accepts TCP but its dispatcher holds a dead gun reference, so every command is silently ignored (in-app trigger recoil and the tab's test box still work, which makes it maddening to diagnose). Use the **autostart checkbox** on the recoil outputs tab, or click **Start Recoil Server** manually after the software is up. If recoil over TCP is silent while trigger-pull recoil works: stop/start the recoil server on that tab.
+- **Fresh software instances boot with recoil disabled** — every `A` fire command is ignored until a `J1` arrives. This plugin sends `J1` automatically in `EnterGameControl`.
+- **Keep commands ≥150ms apart on the recoil server.** Faster spacing coalesces messages, which the server rejects and which appeared to kill its reader mid-session on the bench. The plugin paces at 200ms (`SindenCommandGapMs`).
 
 ## Protocol credits
 
