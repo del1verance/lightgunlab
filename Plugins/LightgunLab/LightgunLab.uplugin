@@ -1,7 +1,7 @@
 {
 	"FileVersion": 3,
-	"Version": 1,
-	"VersionName": "0.1.0",
+	"Version": 2,
+	"VersionName": "0.2.0",
 	"FriendlyName": "Lightgun Lab",
 	"Description": "Lightgun detection, ammo-gated recoil control (GUN4IR, OpenFIRE, Blamcon, RS3 Reaper serial; Sinden TCP), Sinden border overlay, and MAME-compatible output emission for MAMEHooker/QMamehook/Hook of the Reaper rigs.",
 	"Category": "Input",

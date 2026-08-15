@@ -15,7 +15,7 @@ Native lightgun support for Unreal Engine 5.8 on Windows: auto-detection, **ammo
 | **Blamcon** | mouse cursor | COM 9600: `SM.6.1` → `FB.0.1` → `ES` | vendor serial-command docs |
 | Anything MAMEHooker knows (AimTrak, custom cabs) | mouse cursor | **Outputs mode** — see below | MAME network/window-message output protocols |
 
-Guns are auto-detected by USB VID/PID (Gun4IR `2341:8042/8043`, OpenFIRE `F143`, Blamcon `3673`, RS3 `0483:5740`, Sinden HID `16C0:0F0x` + software process check). A startup panel lists what was found, lets the player confirm/switch/test-fire, and remembers the choice. Manual override always available.
+Guns are auto-detected by USB VID/PID (Gun4IR `2341:804x`, OpenFIRE `F143`, Blamcon `3673`, RS3 `0483:5740`, Sinden HID `16C0:0F0x` + software process check), with a user-extensible ID override list in settings for unknown firmware. A startup panel lists what was found, lets the player confirm/switch/test-fire, and remembers the choice. Confirming drops into an **aim test range**: a custom crosshair tracks the gun, on-screen shots register hit markers and fire recoil, and offscreen pulls (corner-snap clicks, right-clicks) stay correctly silent.
 
 ## The ammo gate
 
@@ -54,7 +54,7 @@ Players with an existing rig point their `lightgunlab.ini` at the game and every
 
 **This test bed:** clone into a UE 5.8 source-build root (or fix up `EngineAssociation`), then open `LightgunLab.uproject`.
 
-## Status — v0.1
+## Status — v0.2
 
 Compiles clean; protocols implemented verbatim from vendor documentation. **Sinden and GUN4IR: fully validated end-to-end in engine on real hardware** (2026-08-15). Both guns: USB detection → startup picker → game control seizure (gun's own trigger recoil correctly silenced) → game-commanded recoil on the first shot → clean handback. Sinden additionally: paced TCP, empty-chamber soft fire, and the V2.08b pitfalls documented under Known issues. GUN4IR note: bench gun enumerated as PID `8046` (community docs only list `8042`/`8043`), so detection accepts the whole `804x` block and settings expose user ID overrides. RS3/OpenFIRE/Blamcon backends built to spec and awaiting community confirmation. Known open items: RS3 VID/PID confirmation, GUN4IR firmware↔PID mapping, OpenFIRE `FDA` value formatting, live MAMEHooker 5.1 window-message validation.
 
