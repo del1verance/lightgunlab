@@ -14,6 +14,7 @@
 #include "Engine/World.h"
 #include "Blueprint/UserWidget.h"
 #include "Containers/Ticker.h"
+#include "Misc/App.h"
 
 // Defined here so TUniquePtr members see complete backend/server types.
 ULightgunSubsystem::~ULightgunSubsystem() = default;
@@ -300,7 +301,7 @@ void ULightgunSubsystem::SetOutputsEnabled(bool bTcp, bool bWindowMessages)
 
 void ULightgunSubsystem::SetBorderVisible(bool bVisible)
 {
-	if (bVisible)
+	if (bVisible && FApp::CanEverRender())
 	{
 		if (!BorderWidget)
 		{
@@ -343,6 +344,10 @@ void ULightgunSubsystem::SaveSettings()
 
 void ULightgunSubsystem::ShowStartupPanel()
 {
+	if (!FApp::CanEverRender())
+	{
+		return; // headless (-nullrhi/commandlet): no viewport to panel over
+	}
 	if (!StartupPanel)
 	{
 		StartupPanel = CreateWidget<ULightgunStartupPanel>(GetGameInstance(), ULightgunStartupPanel::StaticClass());
@@ -355,6 +360,10 @@ void ULightgunSubsystem::ShowStartupPanel()
 
 void ULightgunSubsystem::ShowOptionsPanel()
 {
+	if (!FApp::CanEverRender())
+	{
+		return;
+	}
 	if (!OptionsPanel)
 	{
 		OptionsPanel = CreateWidget<ULightgunOptionsPanel>(GetGameInstance(), ULightgunOptionsPanel::StaticClass());
