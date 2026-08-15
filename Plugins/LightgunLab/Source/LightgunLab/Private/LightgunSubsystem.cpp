@@ -159,6 +159,10 @@ bool ULightgunSubsystem::SelectGunByIndex(int32 Index)
 		SetBorderVisible(true);
 	}
 
+	// Seize control now so the init handshake drains through the paced queue
+	// long before the first shot - a fire queued right behind it can be lost.
+	BeginGameControl();
+
 	UE_LOG(LogLightgunLab, Log, TEXT("Selected lightgun: %s"), *Gun.DisplayName);
 	OnStatusChanged.Broadcast();
 	return true;

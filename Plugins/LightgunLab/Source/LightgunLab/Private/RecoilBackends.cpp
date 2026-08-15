@@ -175,10 +175,11 @@ namespace
 		virtual void EnterGameControl() override
 		{
 			// Fresh software instances start with recoil DISABLED (bench-confirmed
-			// 2026-08-15: without J1 every A command is silently ignored).
+			// 2026-08-15: without J1 every A command is silently ignored). No mode
+			// command here: single-shot is the default, and a D mode-switch shortly
+			// before a fire was observed to eat that fire on the bench.
 			Send(Prefix + TEXT("J1"));                                   // recoil master ON
 			Send(Prefix + TEXT("K0"));                                   // our commands only, no trigger recoil
-			Send(Prefix + TEXT("D"));                                    // single-shot mode
 			Send(Prefix + TEXT("N") + FString::FromInt(Strength));       // strength
 			bInControl = true;
 		}
