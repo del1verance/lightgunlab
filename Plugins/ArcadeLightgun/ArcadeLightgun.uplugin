@@ -1,0 +1,20 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "0.1.0",
+	"FriendlyName": "Arcade Lightgun",
+	"Description": "Lightgun detection, ammo-gated recoil control (GUN4IR, OpenFIRE, Blamcon, RS3 Reaper serial; Sinden TCP), Sinden border overlay, and MAME-compatible output emission for MAMEHooker/QMamehook/Hook of the Reaper rigs.",
+	"Category": "Input",
+	"CreatedBy": "del1verance",
+	"CanContainContent": false,
+	"IsBetaVersion": true,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "ArcadeLightgun",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [ "Win64" ]
+		}
+	]
+}
