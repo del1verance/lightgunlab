@@ -48,6 +48,11 @@ void ULightgunCalibrationScreen::NativeOnInitialized()
 
 	ULightgunSubsystem* Lightgun = GetLightgun();
 	bTwoPlayerMode = Lightgun && Lightgun->IsTwoPlayerMode();
+	// Raw-driven whenever a gun session started the router: only the SELECTED
+	// device(s) steer. Mouse-only 1P (or a router that failed to start) keeps the
+	// classic merged-cursor Slate path.
+	bRawDriven = Lightgun && Lightgun->GetRawRouter().IsValid() &&
+		(bTwoPlayerMode || Lightgun->HasActiveGun());
 
 	UOverlay* Root = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
 	WidgetTree->RootWidget = Root;
@@ -80,6 +85,16 @@ void ULightgunCalibrationScreen::NativeOnInitialized()
 		UVerticalBoxSlot* CounterSlot = TopBox->AddChildToVerticalBox(CounterText);
 		CounterSlot->SetPadding(FMargin(0.f, 4.f, 0.f, 0.f));
 		RefreshCounterText();
+
+		if (bRawDriven)
+		{
+			// Same footer as 2P: which device owns the aim, straight from the router.
+			RouterInfoText = MakePanelText(WidgetTree, TEXT(""), 11, false, FLinearColor(0.55f, 0.57f, 0.62f));
+			UOverlaySlot* InfoSlot = Root->AddChildToOverlay(RouterInfoText);
+			InfoSlot->SetHorizontalAlignment(HAlign_Center);
+			InfoSlot->SetVerticalAlignment(VAlign_Bottom);
+			InfoSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 28.f));
+		}
 	}
 	else
 	{
@@ -172,13 +187,19 @@ void ULightgunCalibrationScreen::NativeOnInitialized()
 		SwapButton->SetCursor(EMouseCursor::None);
 		UHorizontalBoxSlot* SwapSlot = Buttons->AddChildToHorizontalBox(SwapButton);
 		SwapSlot->SetPadding(FMargin(12.f, 0.f, 0.f, 0.f));
+	}
 
-		// In 2P the buttons are pressed by SHOOTING them (per-gun raw aim decides,
-		// so the merged cursor can never misroute or double-press). Take them out
-		// of Slate hit-testing entirely - the raw path is the only way in.
+	if (bRawDriven)
+	{
+		// Raw sessions press buttons by SHOOTING them (per-gun raw aim decides, so
+		// the merged cursor can never misroute or double-press). Take them out of
+		// Slate hit-testing entirely - the raw path is the only way in.
 		BackButton->SetVisibility(ESlateVisibility::HitTestInvisible);
 		CrosshairToggleButton->SetVisibility(ESlateVisibility::HitTestInvisible);
-		SwapButton->SetVisibility(ESlateVisibility::HitTestInvisible);
+		if (SwapButton)
+		{
+			SwapButton->SetVisibility(ESlateVisibility::HitTestInvisible);
+		}
 	}
 }
 
@@ -187,7 +208,7 @@ void ULightgunCalibrationScreen::NativeConstruct()
 	Super::NativeConstruct();
 	SetKeyboardFocus(); // any-key reload needs us focused
 
-	if (bTwoPlayerMode)
+	if (bRawDriven)
 	{
 		ULightgunSubsystem* Lightgun = GetLightgun();
 		TSharedPtr<FLightgunRawInputRouter> Router = Lightgun ? Lightgun->GetRawRouter() : nullptr;
@@ -203,7 +224,7 @@ void ULightgunCalibrationScreen::NativeConstruct()
 
 void ULightgunCalibrationScreen::NativeDestruct()
 {
-	if (bTwoPlayerMode)
+	if (bRawDriven)
 	{
 		ULightgunSubsystem* Lightgun = GetLightgun();
 		TSharedPtr<FLightgunRawInputRouter> Router = Lightgun ? Lightgun->GetRawRouter() : nullptr;
@@ -224,8 +245,9 @@ void ULightgunCalibrationScreen::NativeTick(const FGeometry& MyGeometry, float I
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
-	if (!bTwoPlayerMode)
+	if (!bRawDriven)
 	{
+		// Classic path: the crosshair mirrors the merged OS cursor.
 		if (FSlateApplication::IsInitialized())
 		{
 			CrosshairPos = FVector2f(MyGeometry.AbsoluteToLocal(FSlateApplication::Get().GetCursorPos()));
@@ -249,11 +271,11 @@ FReply ULightgunCalibrationScreen::NativeOnMouseButtonDown(const FGeometry& InGe
 {
 	SetKeyboardFocus();
 
-	if (bTwoPlayerMode)
+	if (bRawDriven)
 	{
-		// Gameplay input comes exclusively from the raw router in 2P; the merged
-		// cursor would double-fire whichever player it last mirrored. Swallow it.
-		// (Clicks on the Slate buttons never reach this handler.)
+		// Gameplay input comes exclusively from the raw router: the merged cursor
+		// would fire for devices that aren't the selected gun (or double-fire in
+		// 2P). Swallow it; the buttons are shot, not clicked.
 		return FReply::Handled();
 	}
 
@@ -290,9 +312,9 @@ FReply ULightgunCalibrationScreen::NativeOnMouseButtonDoubleClick(const FGeometr
 
 FReply ULightgunCalibrationScreen::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
-	if (bTwoPlayerMode)
+	if (bRawDriven)
 	{
-		// Raw keyboard routing owns reloads in 2P (per-device, desk keyboard -> P1).
+		// Raw keyboard routing owns reloads (per-device; desk keyboard -> P1).
 		return FReply::Handled();
 	}
 	if (!InKeyEvent.IsRepeat())
@@ -311,22 +333,40 @@ FVector2f ULightgunCalibrationScreen::DesktopToLocal(const FVector2f& DesktopPos
 
 void ULightgunCalibrationScreen::HandleRawAim(int32 PlayerIndex, FVector2f DesktopPos)
 {
-	if (PlayerIndex >= 0 && PlayerIndex < 2)
-	{
-		PlayerCrosshairPos[PlayerIndex] = DesktopToLocal(DesktopPos);
-		bPlayerHasAim[PlayerIndex] = true;
-	}
-}
-
-void ULightgunCalibrationScreen::HandleRawTrigger(int32 PlayerIndex, FVector2f DesktopPos)
-{
 	if (PlayerIndex < 0 || PlayerIndex >= 2)
 	{
 		return;
 	}
 	const FVector2f Local = DesktopToLocal(DesktopPos);
+	if (!bTwoPlayerMode)
+	{
+		// 1P: only the selected gun (slot 0) steers the single crosshair.
+		if (PlayerIndex == 0)
+		{
+			CrosshairPos = Local;
+		}
+		return;
+	}
 	PlayerCrosshairPos[PlayerIndex] = Local;
 	bPlayerHasAim[PlayerIndex] = true;
+}
+
+void ULightgunCalibrationScreen::HandleRawTrigger(int32 PlayerIndex, FVector2f DesktopPos)
+{
+	if (PlayerIndex < 0 || PlayerIndex >= 2 || (!bTwoPlayerMode && PlayerIndex != 0))
+	{
+		return;
+	}
+	const FVector2f Local = DesktopToLocal(DesktopPos);
+	if (bTwoPlayerMode)
+	{
+		PlayerCrosshairPos[PlayerIndex] = Local;
+		bPlayerHasAim[PlayerIndex] = true;
+	}
+	else
+	{
+		CrosshairPos = Local;
+	}
 
 	// UI first: shooting a button presses it (and costs no ammo).
 	if (TryShootButton(DesktopPos, PlayerIndex))
@@ -343,20 +383,21 @@ void ULightgunCalibrationScreen::HandleRawTrigger(int32 PlayerIndex, FVector2f D
 	const bool bCornerY = Local.Y <= OffscreenCornerPx || Local.Y >= Size.Y - OffscreenCornerPx;
 	if (bGeometryReady && bCornerX && bCornerY)
 	{
-		DoReloadForPlayer(PlayerIndex, TEXT("offscreen shot"));
+		bTwoPlayerMode ? DoReloadForPlayer(PlayerIndex, TEXT("offscreen shot")) : DoReload(TEXT("offscreen shot"));
 	}
 	else
 	{
-		HandleTriggerPullForPlayer(PlayerIndex, Local);
+		bTwoPlayerMode ? HandleTriggerPullForPlayer(PlayerIndex, Local) : HandleTriggerPull(Local);
 	}
 }
 
 void ULightgunCalibrationScreen::HandleRawReload(int32 PlayerIndex, const FString& Reason)
 {
-	if (PlayerIndex >= 0 && PlayerIndex < 2)
+	if (PlayerIndex < 0 || PlayerIndex >= 2 || (!bTwoPlayerMode && PlayerIndex != 0))
 	{
-		DoReloadForPlayer(PlayerIndex, Reason);
+		return;
 	}
+	bTwoPlayerMode ? DoReloadForPlayer(PlayerIndex, Reason) : DoReload(Reason);
 }
 
 bool ULightgunCalibrationScreen::TryShootButton(const FVector2f& DesktopPos, int32 PlayerIndex)
@@ -462,22 +503,29 @@ void ULightgunCalibrationScreen::RefreshRouterInfo()
 		return;
 	}
 	FString Info;
-	for (int32 Player = 0; Player < 2; ++Player)
+	if (!bTwoPlayerMode)
 	{
-		FString Device;
-		if (Lightgun->HasActiveGunForPlayer(Player))
+		Info = FString::Printf(TEXT("Aim locked to: %s"), *Lightgun->GetActiveGun().DisplayName);
+	}
+	else
+	{
+		for (int32 Player = 0; Player < 2; ++Player)
 		{
-			Device = Lightgun->GetActiveGunForPlayer(Player).DisplayName;
+			FString Device;
+			if (Lightgun->HasActiveGunForPlayer(Player))
+			{
+				Device = Lightgun->GetActiveGunForPlayer(Player).DisplayName;
+			}
+			else if (Lightgun->IsPlayerDesktopMouse(Player))
+			{
+				Device = TEXT("Desktop mouse (aim only)");
+			}
+			else
+			{
+				Device = TEXT("no device");
+			}
+			Info += FString::Printf(TEXT("%sP%d: %s"), Player == 0 ? TEXT("") : TEXT("      "), Player + 1, *Device);
 		}
-		else if (Lightgun->IsPlayerDesktopMouse(Player))
-		{
-			Device = TEXT("Desktop mouse (aim only)");
-		}
-		else
-		{
-			Device = TEXT("no device");
-		}
-		Info += FString::Printf(TEXT("%sP%d: %s"), Player == 0 ? TEXT("") : TEXT("      "), Player + 1, *Device);
 	}
 	TSharedPtr<FLightgunRawInputRouter> Router = Lightgun->GetRawRouter();
 	if (Router.IsValid())
@@ -490,7 +538,7 @@ void ULightgunCalibrationScreen::RefreshRouterInfo()
 	}
 	else
 	{
-		Info += TEXT("\nRaw input router NOT running - 2P aim will not track");
+		Info += TEXT("\nRaw input router NOT running - gun aim will not track");
 	}
 	RouterInfoText->SetText(FText::FromString(Info));
 	RouterInfoText->SetJustification(ETextJustify::Center);

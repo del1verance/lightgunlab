@@ -31,6 +31,10 @@ public:
 	/** Hammer down on an empty magazine. Default: nothing (silence = authentic for most guns). */
 	virtual void NotifyEmpty() {}
 
+	/** Magazine refilled. Default: nothing. Guns with a real rumble motor buzz;
+	    the solenoid must stay quiet - recoil only ever means a live round. */
+	virtual void NotifyReloaded() {}
+
 	/** Live ammo count changed (OpenFIRE OLED, future Blamcon counter). */
 	virtual void SetAmmo(int32 Count) {}
 

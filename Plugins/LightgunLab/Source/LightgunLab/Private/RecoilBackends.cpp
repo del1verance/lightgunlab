@@ -110,6 +110,9 @@ namespace
 
 		virtual void FireRecoil() override            { Port->Enqueue(Dialect.Fire); }
 		virtual void NotifyEmpty() override           { if (!Dialect.Empty.IsEmpty()) { Port->Enqueue(Dialect.Empty); } }
+		// Reload feel = the rumble motor (GUN4IR/OpenFIRE/Blamcon F1..., RS3 ZZ),
+		// never the solenoid. Guns without the motor fitted just ignore the command.
+		virtual void NotifyReloaded() override        { if (!Dialect.Rumble.IsEmpty()) { Port->Enqueue(Dialect.Rumble); } }
 		virtual void RumblePulse() override           { if (!Dialect.Rumble.IsEmpty()) { Port->Enqueue(Dialect.Rumble); } }
 		virtual void PlayEffect(const FString& E) override { Port->Enqueue(E); }
 
@@ -196,6 +199,8 @@ namespace
 
 		virtual void FireRecoil() override  { Send(TEXT("A")); }
 		virtual void NotifyEmpty() override { Send(TEXT("U") + FString::FromInt(EmptyStrength)); }
+		// No NotifyReloaded override: the Sinden's only actuator IS the solenoid,
+		// and reload must stay silent (its "rumble" U command is a soft hammer hit).
 		virtual void RumblePulse() override { Send(TEXT("U") + FString::FromInt(FMath::Min(EmptyStrength + 2, 10))); }
 		virtual void PlayEffect(const FString& E) override { Send(E); }
 

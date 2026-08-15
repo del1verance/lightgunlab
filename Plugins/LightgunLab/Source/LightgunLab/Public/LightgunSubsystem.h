@@ -103,10 +103,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Lightgun|TwoPlayer")
 	void SwapPlayers();
 
-	/** Enters game control for every active slot and starts the raw router (2P confirm). */
-	void StartTwoPlayerSession();
+	/**
+	 * Enters game control for every active slot and starts (or stops) the raw
+	 * router to match the session: it runs for 2P, and for 1P with a gun selected
+	 * so only THAT device steers aim no matter how many mice/guns are attached.
+	 * Called by the startup panel on either confirm.
+	 */
+	void StartRangeSession();
 
-	/** The raw router, alive during a 2P session. Null in 1P / before confirm / off-Windows. */
+	/** The raw router, alive during a gun session. Null for mouse-only 1P / before confirm / off-Windows. */
 	TSharedPtr<FLightgunRawInputRouter> GetRawRouter() const { return RawRouter; }
 
 	// --- Control lifecycle ---
@@ -135,6 +140,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Lightgun")
 	void NotifyEmpty() { NotifyEmptyForPlayer(0); }
 
+	/** Magazine refilled: rumble-motor buzz on guns that have one, never the solenoid. */
+	UFUNCTION(BlueprintCallable, Category = "Lightgun")
+	void NotifyReloaded() { NotifyReloadedForPlayer(0); }
+
 	/** Feed the live ammo count (drives P{n}_Ammo output + OpenFIRE OLED). */
 	UFUNCTION(BlueprintCallable, Category = "Lightgun")
 	void SetAmmo(int32 Count) { SetAmmoForPlayer(0, Count); }
@@ -162,6 +171,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Lightgun|TwoPlayer")
 	void NotifyEmptyForPlayer(int32 PlayerIndex);
+
+	UFUNCTION(BlueprintCallable, Category = "Lightgun|TwoPlayer")
+	void NotifyReloadedForPlayer(int32 PlayerIndex);
 
 	UFUNCTION(BlueprintCallable, Category = "Lightgun|TwoPlayer")
 	void SetAmmoForPlayer(int32 PlayerIndex, int32 Count);

@@ -372,17 +372,30 @@ void ULightgunSubsystem::SwapPlayers()
 	OnStatusChanged.Broadcast();
 }
 
-void ULightgunSubsystem::StartTwoPlayerSession()
+void ULightgunSubsystem::StartRangeSession()
 {
 	for (int32 Player = 0; Player < LightgunMaxPlayers; ++Player)
 	{
 		BeginGameControlForPlayer(Player);
 	}
-	UpdateBorderForTwoPlayer();
-
-	if (!FApp::CanEverRender())
+	if (IsTwoPlayerMode())
 	{
-		return; // headless: nothing to aim at, no window to hook
+		UpdateBorderForTwoPlayer();
+	}
+
+	// Raw routing runs whenever a gun is in play - in 1P it pins aim to the
+	// SELECTED gun (any other attached mouse/gun is ignored). Mouse-only 1P
+	// keeps the classic merged-cursor path, so no router.
+	const bool bWantRawRouting = FApp::CanEverRender() &&
+		(IsTwoPlayerMode() || HasActiveGunForPlayer(0));
+	if (!bWantRawRouting)
+	{
+		if (RawRouter.IsValid())
+		{
+			RawRouter->Stop();
+			RawRouter.Reset();
+		}
+		return;
 	}
 	if (!RawRouter.IsValid())
 	{
@@ -393,7 +406,8 @@ void ULightgunSubsystem::StartTwoPlayerSession()
 		PushRouterBindings();
 		if (!RawRouter->Start())
 		{
-			UE_LOG(LogLightgunLab, Warning, TEXT("Raw input router failed to start - 2P aim will not track"));
+			UE_LOG(LogLightgunLab, Warning, TEXT("Raw input router failed to start - gun aim will not track"));
+			RawRouter.Reset(); // the range falls back to the merged-cursor path
 		}
 		else
 		{
@@ -504,6 +518,20 @@ void ULightgunSubsystem::NotifyEmptyForPlayer(int32 PlayerIndex)
 		Slot.Backend->NotifyEmpty();
 	}
 	// Deliberately no recoil output emission: an empty gun stays silent on outputs rigs too.
+}
+
+void ULightgunSubsystem::NotifyReloadedForPlayer(int32 PlayerIndex)
+{
+	if (!IsValidPlayer(PlayerIndex))
+	{
+		return;
+	}
+	FPlayerSlot& Slot = Slots[PlayerIndex];
+	if (Slot.Backend.IsValid() && GetRecoilMode() == ERecoilMode::DirectSerial)
+	{
+		Slot.Backend->NotifyReloaded();
+	}
+	// No outputs emission: rigs see P{n}_Ammo jump back to full instead.
 }
 
 void ULightgunSubsystem::SetAmmoForPlayer(int32 PlayerIndex, int32 Count)
@@ -715,8 +743,9 @@ void ULightgunSubsystem::ShowCalibrationScreen()
 	{
 		return;
 	}
-	// The widget tree is built for one mode; a 1P/2P switch needs a fresh build.
-	if (CalibrationScreen && CalibrationScreen->WasBuiltForTwoPlayer() != IsTwoPlayerMode())
+	// Always rebuild: the tree is shaped by the session (1P/2P, raw vs merged
+	// cursor), and a fresh magazine on range entry is correct anyway.
+	if (CalibrationScreen)
 	{
 		if (CalibrationScreen->IsInViewport())
 		{
@@ -724,10 +753,7 @@ void ULightgunSubsystem::ShowCalibrationScreen()
 		}
 		CalibrationScreen = nullptr;
 	}
-	if (!CalibrationScreen)
-	{
-		CalibrationScreen = CreateWidget<ULightgunCalibrationScreen>(GetGameInstance(), ULightgunCalibrationScreen::StaticClass());
-	}
+	CalibrationScreen = CreateWidget<ULightgunCalibrationScreen>(GetGameInstance(), ULightgunCalibrationScreen::StaticClass());
 	if (CalibrationScreen && !CalibrationScreen->IsInViewport())
 	{
 		CalibrationScreen->AddToViewport(9000);

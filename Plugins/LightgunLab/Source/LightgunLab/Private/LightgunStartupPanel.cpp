@@ -187,7 +187,18 @@ void ULightgunStartupPanel::NativeOnInitialized()
 	AddTwoPlayerRow(TwoPlayerNote, 12.f);
 
 	Populate();
-	SetMode(GetDefault<ULightgunSettings>()->bTwoPlayerMode);
+
+	// Two (or more) real guns attached = a two-player rig: open in 2P with each
+	// hint-labeled gun already in its seat. One gun keeps the last-used mode.
+	int32 KnownGuns = 0;
+	if (ULightgunSubsystem* Lightgun = GetLightgun())
+	{
+		KnownGuns = Lightgun->GetDetectedGuns().FilterByPredicate([](const FDetectedLightgun& G)
+		{
+			return G.Model != ELightgunModel::UnknownSerial && G.Model != ELightgunModel::None;
+		}).Num();
+	}
+	SetMode(KnownGuns >= 2 || GetDefault<ULightgunSettings>()->bTwoPlayerMode);
 }
 
 void ULightgunStartupPanel::SetMode(bool bTwoPlayers)
@@ -284,7 +295,6 @@ void ULightgunStartupPanel::PopulateTwoPlayer(bool bKeepCurrentPicks)
 		return;
 	}
 	const TArray<FDetectedLightgun>& Guns = Lightgun->GetDetectedGuns();
-	const ULightgunSettings* Settings = GetDefault<ULightgunSettings>();
 
 	int32 WantGun[2] = { INDEX_NONE, INDEX_NONE };
 	bool bWantMouse[2] = { false, false };
@@ -299,42 +309,46 @@ void ULightgunStartupPanel::PopulateTwoPlayer(bool bKeepCurrentPicks)
 	}
 	else
 	{
-		// Defaults: saved picks where they still exist, else first/second known gun,
-		// else the desktop mouse for P2.
-		auto FindByPref = [&Guns](ELightgunModel Model, const FString& ComPort) -> int32
+		// Hardware seat identity drives the defaults: guns that label themselves
+		// P1/P2 (GUN4IR 8042/8043-style PIDs, Sinden A/B models) land in their own
+		// seat; unlabeled guns fill the remaining seats in detection order; the
+		// desktop mouse covers whatever is left.
+		TArray<int32> Candidates;
+		for (int32 GunIndex = 0; GunIndex < Guns.Num(); ++GunIndex)
 		{
-			for (int32 GunIndex = 0; GunIndex < Guns.Num(); ++GunIndex)
+			if (Guns[GunIndex].Model != ELightgunModel::UnknownSerial)
 			{
-				if (Guns[GunIndex].Model == Model && (ComPort.IsEmpty() || Guns[GunIndex].ComPort == ComPort))
-				{
-					return GunIndex;
-				}
+				Candidates.Add(GunIndex);
 			}
-			return INDEX_NONE;
-		};
-		WantGun[0] = Settings->PreferredModel != ELightgunModel::None
-			? FindByPref(Settings->PreferredModel, Settings->PreferredComPort) : INDEX_NONE;
-		WantGun[1] = Settings->PreferredModelP2 != ELightgunModel::None && !Settings->bPreferredP2IsMouse
-			? FindByPref(Settings->PreferredModelP2, Settings->PreferredComPortP2) : INDEX_NONE;
-
-		auto NextKnownGun = [&Guns](int32 Skip) -> int32
-		{
-			for (int32 GunIndex = 0; GunIndex < Guns.Num(); ++GunIndex)
-			{
-				if (GunIndex != Skip && Guns[GunIndex].Model != ELightgunModel::UnknownSerial)
-				{
-					return GunIndex;
-				}
-			}
-			return INDEX_NONE;
-		};
-		if (WantGun[0] == INDEX_NONE)
-		{
-			WantGun[0] = NextKnownGun(WantGun[1]);
 		}
-		if (WantGun[1] == INDEX_NONE || WantGun[1] == WantGun[0])
+		Candidates.StableSort([&Guns](int32 A, int32 B) { return Guns[A].PlayerHint < Guns[B].PlayerHint; });
+
+		for (int32 Candidate : Candidates)
 		{
-			WantGun[1] = NextKnownGun(WantGun[0]);
+			if (Guns[Candidate].PlayerHint >= 2)
+			{
+				WantGun[1] = Candidate; // a self-declared P2 gun claims that seat
+				break;
+			}
+		}
+		for (int32 Candidate : Candidates)
+		{
+			if (Candidate != WantGun[1])
+			{
+				WantGun[0] = Candidate;
+				break;
+			}
+		}
+		if (WantGun[1] == INDEX_NONE)
+		{
+			for (int32 Candidate : Candidates)
+			{
+				if (Candidate != WantGun[0])
+				{
+					WantGun[1] = Candidate;
+					break;
+				}
+			}
 		}
 		bWantMouse[0] = WantGun[0] == INDEX_NONE;
 		bWantMouse[1] = WantGun[1] == INDEX_NONE;
@@ -535,7 +549,7 @@ void ULightgunStartupPanel::OnConfirmTwoPlayerClicked()
 	}
 	ApplyPickForPlayer(0);
 	ApplyPickForPlayer(1);
-	Lightgun->StartTwoPlayerSession();
+	Lightgun->StartRangeSession();
 	RemoveFromParent();
 	Lightgun->ShowCalibrationScreen();
 }
@@ -563,7 +577,7 @@ void ULightgunStartupPanel::OnConfirmClicked()
 	if (ULightgunSubsystem* Lightgun = GetLightgun())
 	{
 		ApplyComboSelection();
-		Lightgun->BeginGameControl();
+		Lightgun->StartRangeSession(); // begins game control + raw routing for the selected gun
 		RemoveFromParent();
 		Lightgun->ShowCalibrationScreen();
 	}

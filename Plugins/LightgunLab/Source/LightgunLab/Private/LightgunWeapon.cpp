@@ -39,11 +39,13 @@ bool ULightgunWeapon::TryFire()
 
 void ULightgunWeapon::Reload()
 {
-	// No gun feedback here on purpose: recoil only ever means a live round.
+	// Reload feel = rumble motor only (guns that have one); the solenoid stays
+	// quiet - recoil only ever means a live round.
 	Ammo = MagazineSize;
 	if (Subsystem)
 	{
 		Subsystem->SetAmmoForPlayer(PlayerIndex, Ammo);
+		Subsystem->NotifyReloadedForPlayer(PlayerIndex);
 	}
 	OnAmmoChanged.Broadcast(Ammo);
 	OnReloaded.Broadcast();

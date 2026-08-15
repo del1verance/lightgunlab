@@ -16,19 +16,17 @@ class ULightgunWeapon;
  * any non-trigger gun/mouse button, or a keyboard key. The range is the
  * home screen: the only ways out are back to gun select.
  *
- * One player: aim is the merged OS cursor and input arrives through Slate -
- * the v0.3 path, byte for byte. Two players: aim, triggers, and reloads come
- * exclusively from the Raw Input router (per-device, so the merged cursor
- * can't double-fire); Slate keeps only the panel buttons clickable.
+ * Input model: whenever a gun is selected (1P or 2P), aim, triggers, and reloads
+ * come exclusively from the Raw Input router - per-device, so only the SELECTED
+ * gun steers its crosshair no matter how many mice/guns are attached, and the
+ * merged cursor can't double-fire. The on-screen buttons are pressed by shooting
+ * them. Mouse-only 1P keeps the classic merged-cursor Slate path (any mouse is
+ * "the mouse", and OS pointer ballistics feel right there).
  */
 UCLASS(Blueprintable)
 class LIGHTGUNLAB_API ULightgunCalibrationScreen : public UUserWidget
 {
 	GENERATED_BODY()
-
-public:
-	/** Which mode the widget tree was built for; a mode switch needs a fresh widget. */
-	bool WasBuiltForTwoPlayer() const { return bTwoPlayerMode; }
 
 protected:
 	virtual void NativeOnInitialized() override;
@@ -99,6 +97,8 @@ private:
 	bool bCrosshairVisible = true;
 
 	bool bTwoPlayerMode = false;
+	/** True when gameplay input comes from the raw router (any gun session); false = classic Slate path (mouse-only 1P / router unavailable). */
+	bool bRawDriven = false;
 	FVector2f PlayerCrosshairPos[2] = { FVector2f::ZeroVector, FVector2f::ZeroVector };
 	bool bPlayerHasAim[2] = { false, false };
 	double PlayerLastHitTime[2] = { -10.0, -10.0 };

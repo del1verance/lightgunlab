@@ -71,9 +71,11 @@ public:
 		}
 
 		// The mouse usage registration is per-process: the engine's high-precision
-		// mouse mode (never active in this UI-only flow, but cheap to guard against)
-		// would replace or remove it. Re-assert every couple of seconds if it's gone.
-		ReassertHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FLightgunRawInputRouterWindows::ReassertRegistration), 2.0f);
+		// mouse mode replaces it on capture and RIDEV_REMOVEs it on release - in
+		// PIE that happens whenever a click lands on editor chrome (e.g. after a
+		// gun wanders offscreen), killing our aim stream. Re-check aggressively,
+		// and also on every window (re)activation below.
+		ReassertHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FLightgunRawInputRouterWindows::ReassertRegistration), 0.25f);
 
 		bStarted = true;
 		RebuildDeviceMap();
@@ -315,6 +317,16 @@ public:
 			bMapDirty = true;
 			return false;
 		}
+		// Re-activation is the exact moment we return from whatever clobbered the
+		// per-process registration (editor captures toggling high-precision mouse
+		// mode replace it and then RIDEV_REMOVE it). Re-assert immediately instead
+		// of waiting for the ticker.
+		if (bStarted && ((Msg == WM_ACTIVATE && LOWORD(WParam) != WA_INACTIVE) ||
+			(Msg == WM_ACTIVATEAPP && WParam) || Msg == WM_SETFOCUS))
+		{
+			CheckAndReassertRegistration();
+			return false;
+		}
 		if (Msg != WM_INPUT || !bStarted)
 		{
 			return false;
@@ -399,6 +411,12 @@ private:
 
 	bool ReassertRegistration(float)
 	{
+		CheckAndReassertRegistration();
+		return true;
+	}
+
+	void CheckAndReassertRegistration()
+	{
 		UINT Count = 0;
 		::GetRegisteredRawInputDevices(nullptr, &Count, sizeof(RAWINPUTDEVICE));
 		bool bMouseOk = false, bKeyboardOk = false;
@@ -422,10 +440,19 @@ private:
 		}
 		if (!bMouseOk || !bKeyboardOk)
 		{
-			UE_LOG(LogLightgunLab, Warning, TEXT("Raw input registration was replaced elsewhere; re-asserting"));
+			// Log the loss once per episode - during an editor capture this check
+			// re-fights every 250ms and would otherwise spam.
+			if (bLastRegistrationOk)
+			{
+				UE_LOG(LogLightgunLab, Log, TEXT("Raw input registration was replaced elsewhere; re-asserting"));
+			}
+			bLastRegistrationOk = false;
 			RegisterDevices();
 		}
-		return true;
+		else
+		{
+			bLastRegistrationOk = true;
+		}
 	}
 
 	void HandleMouse(HANDLE Device, const RAWMOUSE& Mouse)
@@ -506,25 +533,23 @@ private:
 
 		if (bAbsolute)
 		{
-			// An absolute stream we can't tie to hardware: most likely a vendor app
-			// injecting aim for its gun. Adopt it for the first gun player whose own
-			// device has stayed silent, so that gun still tracks. Swap fixes a
-			// two-orphan wrong guess.
+			// A DEVICE-LESS absolute stream (hDevice null = SendInput) is a vendor
+			// app injecting aim for its gun: adopt it for the first gun player whose
+			// own device has stayed silent, so that gun still tracks. Real hardware
+			// we couldn't match is NOT adopted - an unselected spare gun on the desk
+			// must never steer a player it wasn't assigned to.
+			if (Device)
+			{
+				return INDEX_NONE;
+			}
 			for (int32 Player = 0; Player < NumPlayers; ++Player)
 			{
 				const FPlayerBinding& B = Bindings[Player];
 				if (B.bActive && !B.bDesktopMouse && !Runtime[Player].bMappedDeviceProducedAim && !Runtime[Player].bAdoptedOrphan)
 				{
 					Runtime[Player].bAdoptedOrphan = true;
-					if (Device)
-					{
-						MouseToPlayer.Add(Device, Player);
-					}
-					else
-					{
-						NullAbsolutePlayer = Player;
-					}
-					UE_LOG(LogLightgunLab, Log, TEXT("Raw input: adopted unmatched absolute device %p for P%d"), Device, Player + 1);
+					NullAbsolutePlayer = Player;
+					UE_LOG(LogLightgunLab, Log, TEXT("Raw input: adopted injected (device-less) absolute aim for P%d"), Player + 1);
 					return Player;
 				}
 			}
@@ -609,6 +634,7 @@ private:
 	bool bHandlerAdded = false;
 	bool bDevicesRegistered = false;
 	bool bMapDirty = false;
+	bool bLastRegistrationOk = true;
 	FTSTicker::FDelegateHandle ReassertHandle;
 };
 
