@@ -9,14 +9,15 @@ Two lightguns on the same PC at the same time — ANY mix: Sinden + GUN4IR, two 
 - **1P aim locked to the selected gun** — with a gun chosen, the range runs off the same per-device raw routing even in single player, so a spare gun or extra mouse on the desk can no longer steer the crosshair. Mouse-only play keeps the classic merged-cursor path.
 - **Seats fill themselves** — detecting two guns opens the setup panel in two-player mode, and guns that declare their seat (GUN4IR P1/P2 PIDs, Sinden A/B models) are pre-assigned to it. Each seat gets its own **Test recoil** and **Test vibration** buttons, greyed out when the picked device lacks that hardware (desktop mouse: both).
 - **Shootable UI** — in any gun session the range's buttons (Back / Crosshair / Swap) are pressed by *shooting* them: each gun's own aim point decides (the mouse player's click works the same way), it costs no ammo, and the press rings in the shooter's color.
-- **Reload feel, done right** — reload never fires a real kick (recoil only ever means a live round); guns with a rumble motor (GUN4IR, OpenFIRE, Blamcon, RS3) buzz on reload, and the Sinden — solenoid-only hardware — marks it with its lightest possible tap.
+- **Reload feel, done right** — reload never fires a real kick (recoil only ever means a live round); guns with a rumble motor (GUN4IR, OpenFIRE, Blamcon, RS3) buzz on reload, and the Sinden — solenoid-only hardware — marks it with its lightest feelable tap (`SindenVibrationStrength`, default 3).
+- **The border knows** — detecting a Sinden pops the tracking border immediately (you need it to aim at the picker at all), it follows your picks live (deselect every Sinden and it disappears), and the range UI insets into a **border safe zone** so no button, pip, or text ever sits under the frame.
 - **Per-player API** — `FireRecoilForPlayer()`, `NotifyReloadedForPlayer()` & friends beside the unchanged 1P API; outputs emit `P1_*`/`P2_*` per seat in 2P for dual-gun hooker rigs.
 
 ## Install
 Drop the `LightgunLab` folder from the zip into your project's `Plugins/`, enable, build (prebuilt Win64 editor binaries for UE 5.8.1 included). MAMEHooker/QMamehook/Hook of the Reaper configs in `HookerConfigs/`.
 
 ## Status
-Single-player: Sinden ✅ and GUN4IR ✅ validated end-to-end on real hardware (v0.3.0), untouched here. Two-player: validated on the reference bench — Sinden + GUN4IR in both seat orders, simultaneous rapid fire, per-gun reload isolation, and gun + desktop mouse. RS3 Reaper / OpenFIRE / Blamcon built verbatim from vendor docs — test reports welcome.
+Single-player AND two-player validated end-to-end on real Sinden + GUN4IR hardware (2026-08-15): independent per-device aim in every mix and both seat orders, simultaneous rapid fire with no lost shots or crosstalk, per-gun reload isolation, reload rumble/tap, shoot-to-press UI, and the live border safe zone. Sinden aim confirmed to arrive as per-device raw input (the injected-stream fallback stayed idle). RS3 Reaper / OpenFIRE / Blamcon built verbatim from vendor docs — test reports welcome.
 
 MIT licensed.
 
