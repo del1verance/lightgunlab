@@ -133,11 +133,7 @@ void ULightgunSubsystem::Deinitialize()
 		DeviceWatcher->Stop();
 		DeviceWatcher.Reset();
 	}
-	if (RawRouter.IsValid())
-	{
-		RawRouter->Stop();
-		RawRouter.Reset();
-	}
+	StopRawRouter();
 	for (int32 Player = 0; Player < LightgunMaxPlayers; ++Player)
 	{
 		EndGameControlForPlayer(Player);
@@ -352,11 +348,7 @@ void ULightgunSubsystem::SetTwoPlayerMode(bool bEnabled)
 	if (!bEnabled)
 	{
 		// Back to the validated 1P world: P2 releases its gun, the router goes away.
-		if (RawRouter.IsValid())
-		{
-			RawRouter->Stop();
-			RawRouter.Reset();
-		}
+		StopRawRouter();
 		EndGameControlForPlayer(1);
 		TeardownBackend(1);
 		Slots[1] = FPlayerSlot();
@@ -577,16 +569,20 @@ void ULightgunSubsystem::StartRangeSession()
 		(IsTwoPlayerMode() || HasActiveGunForPlayer(0));
 	if (!bWantRawRouting)
 	{
-		if (RawRouter.IsValid())
-		{
-			RawRouter->Stop();
-			RawRouter.Reset();
-		}
+		StopRawRouter();
 		return;
 	}
 	if (!RawRouter.IsValid())
 	{
 		RawRouter = FLightgunRawInputRouter::Create();
+		if (RawRouter.IsValid())
+		{
+			// Mirror the per-device streams onto the Blueprint events for as long
+			// as this router instance lives (rebinding happens with recreation).
+			RouterAimHandle = RawRouter->OnAim.AddUObject(this, &ULightgunSubsystem::HandleRouterAim);
+			RouterTriggerHandle = RawRouter->OnTrigger.AddUObject(this, &ULightgunSubsystem::HandleRouterTrigger);
+			RouterReloadHandle = RawRouter->OnReload.AddUObject(this, &ULightgunSubsystem::HandleRouterReload);
+		}
 	}
 	if (RawRouter.IsValid())
 	{
@@ -594,13 +590,72 @@ void ULightgunSubsystem::StartRangeSession()
 		if (!RawRouter->Start())
 		{
 			UE_LOG(LogLightgunLab, Warning, TEXT("Raw input router failed to start - gun aim will not track"));
-			RawRouter.Reset(); // the range falls back to the merged-cursor path
+			StopRawRouter(); // the range falls back to the merged-cursor path
 		}
 		else
 		{
 			RawRouter->RebuildDeviceMap();
 		}
 	}
+}
+
+void ULightgunSubsystem::StopRawRouter()
+{
+	if (RawRouter.IsValid())
+	{
+		RawRouter->Stop();
+		RawRouter.Reset();
+	}
+	// The delegate bindings died with the router; the aim cache dies with the session.
+	RouterAimHandle.Reset();
+	RouterTriggerHandle.Reset();
+	RouterReloadHandle.Reset();
+	for (int32 Player = 0; Player < LightgunMaxPlayers; ++Player)
+	{
+		bHasRawAim[Player] = false;
+	}
+}
+
+void ULightgunSubsystem::HandleRouterAim(int32 PlayerIndex, FVector2f DesktopPx)
+{
+	if (!IsValidPlayer(PlayerIndex))
+	{
+		return;
+	}
+	LastRawAim[PlayerIndex] = FVector2D(DesktopPx.X, DesktopPx.Y);
+	bHasRawAim[PlayerIndex] = true;
+	OnGunAim.Broadcast(PlayerIndex, LastRawAim[PlayerIndex]);
+}
+
+void ULightgunSubsystem::HandleRouterTrigger(int32 PlayerIndex, FVector2f DesktopPx)
+{
+	if (!IsValidPlayer(PlayerIndex))
+	{
+		return;
+	}
+	// Press-time position is aim too: a trigger on a quiet device still lands fresh.
+	LastRawAim[PlayerIndex] = FVector2D(DesktopPx.X, DesktopPx.Y);
+	bHasRawAim[PlayerIndex] = true;
+	OnGunTriggerPulled.Broadcast(PlayerIndex, LastRawAim[PlayerIndex]);
+}
+
+void ULightgunSubsystem::HandleRouterReload(int32 PlayerIndex, const FString& Reason)
+{
+	if (IsValidPlayer(PlayerIndex))
+	{
+		OnGunReloadRequested.Broadcast(PlayerIndex, Reason);
+	}
+}
+
+bool ULightgunSubsystem::GetAimForPlayer(int32 PlayerIndex, FVector2D& OutDesktopPx) const
+{
+	if (!IsValidPlayer(PlayerIndex) || !bHasRawAim[PlayerIndex])
+	{
+		OutDesktopPx = FVector2D::ZeroVector;
+		return false;
+	}
+	OutDesktopPx = LastRawAim[PlayerIndex];
+	return true;
 }
 
 void ULightgunSubsystem::PushRouterBindings()

@@ -22,6 +22,9 @@ class ULightgunCalibrationScreen;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLightgunStatusChanged);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLightgunConnected, FDetectedLightgun, Gun);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLightgunDisconnected, FDetectedLightgun, Gun, int32, PlayerIndex);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLightgunAim, int32, PlayerIndex, FVector2D, DesktopPx);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLightgunTriggerPulled, int32, PlayerIndex, FVector2D, DesktopPx);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLightgunReloadRequested, int32, PlayerIndex, FString, Reason);
 
 /**
  * Game-facing lightgun API. The weapon code only reports what happened
@@ -110,12 +113,20 @@ public:
 	 * Enters game control for every active slot and starts (or stops) the raw
 	 * router to match the session: it runs for 2P, and for 1P with a gun selected
 	 * so only THAT device steers aim no matter how many mice/guns are attached.
-	 * Called by the startup panel on either confirm.
+	 * Called by the startup panel on either confirm; a custom picker finishes
+	 * its own confirm with this same call.
 	 */
+	UFUNCTION(BlueprintCallable, Category = "Lightgun")
 	void StartRangeSession();
 
 	/** The raw router, alive during a gun session. Null for mouse-only 1P / before confirm / off-Windows. */
 	TSharedPtr<FLightgunRawInputRouter> GetRawRouter() const { return RawRouter; }
+
+	/** Latest per-device aim for a seat, in desktop pixels (Slate absolute space).
+	    False until that player's device has produced aim this session, and always
+	    false outside a gun session (mouse-only 1P aims through normal input). */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Lightgun|Input")
+	bool GetAimForPlayer(int32 PlayerIndex, FVector2D& OutDesktopPx) const;
 
 	// --- Control lifecycle ---
 
@@ -258,6 +269,23 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Lightgun")
 	FOnLightgunDisconnected OnGunDisconnected;
 
+	/**
+	 * Per-device aim for a seated player, forwarded from the raw router while a gun
+	 * session runs (after StartRangeSession with a gun in play). Desktop pixels
+	 * (Slate absolute space) - convert with Absolute to Local against a widget's
+	 * cached geometry. Silent in mouse-only 1P, where normal input is the path.
+	 */
+	UPROPERTY(BlueprintAssignable, Category = "Lightgun|Input")
+	FOnLightgunAim OnGunAim;
+
+	/** Trigger (left button) pressed on the player's own device; DesktopPx is the aim at press time. */
+	UPROPERTY(BlueprintAssignable, Category = "Lightgun|Input")
+	FOnLightgunTriggerPulled OnGunTriggerPulled;
+
+	/** Any non-trigger gun button, or a correlated keyboard key (desk keyboard -> P1): a reload request. */
+	UPROPERTY(BlueprintAssignable, Category = "Lightgun|Input")
+	FOnLightgunReloadRequested OnGunReloadRequested;
+
 private:
 	struct FPlayerSlot
 	{
@@ -271,6 +299,10 @@ private:
 
 	void EmitOutput(int32 PlayerIndex, const FString& ShortName, int32 Value);
 	void EmitOutputPulse(int32 PlayerIndex, const FString& ShortName);
+	void StopRawRouter();
+	void HandleRouterAim(int32 PlayerIndex, FVector2f DesktopPx);
+	void HandleRouterTrigger(int32 PlayerIndex, FVector2f DesktopPx);
+	void HandleRouterReload(int32 PlayerIndex, const FString& Reason);
 	void StartOutputServersIfEnabled();
 	void StopOutputServers();
 	void TeardownBackend(int32 PlayerIndex);
@@ -290,6 +322,12 @@ private:
 	TSharedPtr<FMameOutputServer> TcpOutputs;
 	TSharedPtr<FMameWindowBroadcaster> WindowOutputs;
 	TSharedPtr<FLightgunRawInputRouter> RawRouter;
+	FDelegateHandle RouterAimHandle;
+	FDelegateHandle RouterTriggerHandle;
+	FDelegateHandle RouterReloadHandle;
+	/** Last router aim per seat, for GetAimForPlayer. Cleared when the router stops. */
+	FVector2D LastRawAim[LightgunMaxPlayers] = {};
+	bool bHasRawAim[LightgunMaxPlayers] = {};
 	TSharedPtr<FLightgunDeviceWatcher> DeviceWatcher;
 	FTSTicker::FDelegateHandle HotRescanHandle;
 	double LastDeviceChangeTime = 0.0;
