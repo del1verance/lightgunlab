@@ -17,5 +17,3 @@ Plug guns in. Yank them out. The plugin keeps up.
 Drop the `LightgunLab` folder from the plugin zip into your project's `Plugins/`, enable, build (prebuilt Win64 editor binaries for UE 5.8.1 included). Hooker configs in `HookerConfigs/`.
 
 MIT licensed.
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)

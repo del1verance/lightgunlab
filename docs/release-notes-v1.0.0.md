@@ -24,5 +24,3 @@ Drop the `LightgunLab` folder from the zip into your project's `Plugins/`, enabl
 **Sinden and GUN4IR validated end-to-end on real hardware** — single-player and two-player, both seat orders, simultaneous rapid fire with no lost shots or crosstalk, per-gun reload isolation, and every feedback path (recoil, dry fire, reload rumble/tap, border). RS3 Reaper / OpenFIRE / Blamcon are built verbatim from vendor documentation — test reports welcome, especially RS3 USB IDs and OpenFIRE `FDA` formatting.
 
 MIT licensed.
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)

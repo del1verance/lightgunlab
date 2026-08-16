@@ -14,5 +14,3 @@ GunCon 3 joins the supported list, plus a host-game integration setting.
 Drop the `LightgunLab` folder from the plugin zip into your project's `Plugins/`, enable, build (prebuilt Win64 editor binaries for UE 5.8.1 included). Hooker configs in `HookerConfigs/`.
 
 MIT licensed.
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
