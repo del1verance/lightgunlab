@@ -23,7 +23,7 @@ The filename must match the game's **Outputs game name** setting (default `light
 - `P1_Life` — current health, whenever it changes.
 - `mame_start = lightgunlab` on connect, `mame_stop = 1` on quit (standard MAME network protocol, TCP :8000, also mirrored as MAME window messages when enabled).
 
-Player 2 machines emit `P2_*` when the in-game Player Slot setting is 2. In **two-player mode** (v0.4) both seats emit simultaneously — P1's events as `P1_*` and P2's as `P2_*` — so a dual-gun rig config needs both output names wired.
+Player 2 machines emit `P2_*` when the in-game Player Slot setting is 2. In **two-player mode** both seats emit simultaneously — P1's events as `P1_*` and P2's as `P2_*` — so a dual-gun rig config needs both output names wired.
 
 ## Sinden
 

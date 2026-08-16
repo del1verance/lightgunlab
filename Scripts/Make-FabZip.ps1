@@ -4,9 +4,9 @@
 # Fab compiles code plugins itself, so the archive must contain no
 # Binaries/ or Intermediate/ - just the .uplugin, Source, and Resources.
 #
-# Usage:  powershell -ExecutionPolicy Bypass -File Scripts\Make-FabZip.ps1 [-Version 0.1.0]
+# Usage:  powershell -ExecutionPolicy Bypass -File Scripts\Make-FabZip.ps1 [-Version 1.0.0]
 
-param([string]$Version = "0.1.0")
+param([string]$Version = "1.0.0")
 $ErrorActionPreference = 'Stop'
 
 $Root = Split-Path $PSScriptRoot -Parent

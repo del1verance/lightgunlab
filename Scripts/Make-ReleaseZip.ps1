@@ -1,11 +1,11 @@
-# Stages the GitHub release zip (v0.3.0 layout: plugin source + prebuilt Win64
-# editor binaries + Resources at the zip root's LightgunLab/, plus HookerConfigs,
-# LICENSE, README). Build the plugin first; binaries are taken as-is.
+# Stages the GitHub release zip: plugin source + prebuilt Win64 editor binaries
+# + Resources at the zip root's LightgunLab/, plus HookerConfigs, LICENSE,
+# README. Build the plugin first; binaries are taken as-is.
 #
-#   powershell -File Scripts\Make-ReleaseZip.ps1 -Version 0.4.0
+#   powershell -File Scripts\Make-ReleaseZip.ps1 -Version 1.0.0
 #
 # Then, after the bench pass:
-#   gh release create v0.4.0 "dist\LightgunLab-<ver>-UE5.8-Win64.zip#Lightgun Lab plugin <ver> (UE 5.8, Win64, source + prebuilt binaries + hooker configs)" --latest --title "..." --notes-file docs\release-notes-v<ver>.md
+#   gh release create v<ver> "dist\LightgunLab-<ver>-UE5.8-Win64.zip#Lightgun Lab plugin <ver> (UE 5.8, Win64, source + prebuilt binaries + hooker configs)" --latest --title "..." --notes-file docs\release-notes-v<ver>.md
 
 param([Parameter(Mandatory = $true)][string]$Version)
 

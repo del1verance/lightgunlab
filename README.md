@@ -17,7 +17,7 @@ Native lightgun support for Unreal Engine 5.8 on Windows: auto-detection, **ammo
 
 Guns are auto-detected by USB VID/PID (Gun4IR `2341:804x`, OpenFIRE `F143`, Blamcon `3673`, RS3 `0483:5740`, Sinden HID `16C0:0F0x` + software process check — every physical Sinden enumerated separately), with a user-extensible ID override list in settings for unknown firmware. A startup panel lists what was found, lets the player confirm/switch and test recoil or vibration per gun, and remembers the choice. Confirming drops into an **aim test range with a live 6-round weapon** (`ULightgunWeapon`, reusable from any actor): a custom crosshair tracks the gun (OS cursor fully hidden), on-screen shots spend ammo and fire recoil with hit markers and HUD pips, an empty magazine dry-fires with **no recoil** (Sinden gets its soft empty-chamber clunk, RS3 its `Z0` state), and reload comes from an offscreen shot, any non-trigger gun button, or any keyboard key. Reload never fires a real kick — recoil only ever means a live round; rumble-motor guns buzz on reload, and the Sinden marks it with its lightest solenoid tap. Rapid fire is lossless (double-click events handled; Sinden fire runs collapse into gun-paced `T` bursts).
 
-## Two players, one PC (v0.4)
+## Two players, one PC
 
 Windows merges every pointing device into one cursor; Lightgun Lab un-merges them. A **"Two players" toggle on the startup panel** gives each player their own device dropdown — any mix works: Sinden + GUN4IR, two Sindens, or a gun plus the **desktop mouse as an aim-only P2**. The same physical device can never serve both players. Detecting two guns opens the panel in two-player mode automatically, and guns that declare their seat (GUN4IR P1/P2 PIDs, Sinden A/B models) are pre-seated accordingly.
 
@@ -67,7 +67,7 @@ Players with an existing rig point their `lightgunlab.ini` at the game and every
 
 **This test bed:** clone into a UE 5.8 source-build root (or fix up `EngineAssociation`), then open `LightgunLab.uproject`.
 
-## Status — v0.4
+## Status — v1.0
 
 Compiles clean; protocols implemented verbatim from vendor documentation. **Single-player AND two-player fully validated end-to-end on real Sinden and GUN4IR hardware (2026-08-15)**: independent per-device aim in every mix and both seat orders (Swap included), simultaneous rapid fire with no lost shots or crosstalk, per-gun reload isolation, the complete ammo-gated weapon loop with reload rumble/tap feedback, shoot-to-press range UI, gun + desktop mouse, and the live Sinden border with its UI safe zone. Sinden aim confirmed to arrive as per-device raw input on the bench (the injected-stream fallback stayed idle). Sinden pitfalls (V2.08b) documented under Known issues. GUN4IR notes: bench gun enumerated as PID `8046` (community docs only list `8042`/`8043`), so detection accepts the whole `804x` block and settings expose user ID overrides; one rumble pulse is physically imperceptible, so vibration feedback pulses in threes. RS3/OpenFIRE/Blamcon backends built to spec and awaiting community confirmation. Known open items: RS3 VID/PID confirmation, GUN4IR firmware↔PID mapping, OpenFIRE `FDA` value formatting, live MAMEHooker 5.1 window-message validation.
 
