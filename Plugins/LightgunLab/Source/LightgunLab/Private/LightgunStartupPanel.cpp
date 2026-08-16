@@ -185,7 +185,9 @@ void ULightgunStartupPanel::NativeOnInitialized()
 	UHorizontalBox* TwoPlayerButtons = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 	AddTwoPlayerRow(TwoPlayerButtons, 16.f);
 
-	UButton* ConfirmTwoButton = MakePanelButton(WidgetTree, TEXT("  Start two-player range  "));
+	UButton* ConfirmTwoButton = MakePanelButton(WidgetTree, GetDefault<ULightgunSettings>()->bShowRangeOnConfirm
+		? TEXT("  Start two-player range  ")
+		: TEXT("  Confirm two players  "));
 	ConfirmTwoButton->OnClicked.AddDynamic(this, &ULightgunStartupPanel::OnConfirmTwoPlayerClicked);
 	TwoPlayerButtons->AddChildToHorizontalBox(ConfirmTwoButton);
 
@@ -670,7 +672,10 @@ void ULightgunStartupPanel::OnConfirmTwoPlayerClicked()
 	ApplyPickForPlayer(1);
 	Lightgun->StartRangeSession();
 	RemoveFromParent();
-	Lightgun->ShowCalibrationScreen();
+	if (GetDefault<ULightgunSettings>()->bShowRangeOnConfirm)
+	{
+		Lightgun->ShowCalibrationScreen();
+	}
 }
 
 void ULightgunStartupPanel::ApplyComboSelection()
@@ -698,7 +703,10 @@ void ULightgunStartupPanel::OnConfirmClicked()
 		ApplyComboSelection();
 		Lightgun->StartRangeSession(); // begins game control + raw routing for the selected gun
 		RemoveFromParent();
-		Lightgun->ShowCalibrationScreen();
+		if (GetDefault<ULightgunSettings>()->bShowRangeOnConfirm)
+		{
+			Lightgun->ShowCalibrationScreen();
+		}
 	}
 }
 

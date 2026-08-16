@@ -20,6 +20,14 @@ public:
 	UPROPERTY(config, EditAnywhere, BlueprintReadOnly, Category = "General")
 	bool bShowStartupPanel = true;
 
+	/** Open the aim test range when the picker is confirmed. The plugin's own test
+	    bed keeps this on (the range is its home screen and has no exit into a game);
+	    host games set it false so confirm hands straight back to their flow -
+	    StartRangeSession() still runs either way (game control + raw aim routing),
+	    and the range stays reachable via ShowCalibrationScreen(). */
+	UPROPERTY(config, EditAnywhere, BlueprintReadOnly, Category = "General")
+	bool bShowRangeOnConfirm = true;
+
 	UPROPERTY(config, EditAnywhere, BlueprintReadOnly, Category = "General")
 	ERecoilMode RecoilMode = ERecoilMode::DirectSerial;
 

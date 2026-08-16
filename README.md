@@ -63,7 +63,7 @@ Players with an existing rig point their `lightgunlab.ini` at the game and every
 
 ## Install
 
-**Into your own project:** copy `Plugins/LightgunLab` into `<YourProject>/Plugins/`, enable it, build. All UI panels are C++-built with zero content dependencies and can be subclassed in Blueprint for reskinning.
+**Into your own project:** copy `Plugins/LightgunLab` into `<YourProject>/Plugins/`, enable it, build. All UI panels are C++-built with zero content dependencies and can be subclassed in Blueprint for reskinning. Host games usually set `bShowRangeOnConfirm=false` so confirming the picker hands straight back to the game (control seizure and raw aim routing still happen; the aim test range stays reachable via `ShowCalibrationScreen()`) — the default keeps the range as the home screen, which is what this test bed wants.
 
 **This test bed:** clone into a UE 5.8 source-build root (or fix up `EngineAssociation`), then open `LightgunLab.uproject`.
 
