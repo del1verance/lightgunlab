@@ -25,8 +25,9 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FOnLightgunRawReload, int32 /*PlayerIndex*/
  * Unmatched RELATIVE mice drive the "Desktop mouse (aim only)" player, if one is
  * configured. DEVICE-LESS absolute streams (SendInput injection, e.g. a vendor app
  * moving the cursor for its gun) are adopted by the first gun player whose own device
- * hasn't produced aim yet - logged so the bench can see the routing. Unmatched real
- * hardware is ignored: a spare gun on the desk never steers anyone.
+ * hasn't produced aim yet - logged so the bench can see the routing. Unmatched REAL
+ * absolute devices are adopted only by players whose gun aims through a virtual
+ * driver mouse (GunCon 3); otherwise a spare gun on the desk never steers anyone.
  * Keyboards correlate the same way; an uncorrelated (desk) keyboard reloads P1.
  * Key auto-repeats are filtered; raw input has no double-click synthesis, so rapid
  * trigger work arrives as clean per-press events (the v0.3 lost-shot pitfall can't recur).
@@ -43,6 +44,10 @@ public:
 		bool bActive = false;
 		/** Aim-only desktop mouse pick: fed by unmatched relative mice, never by gun matching. */
 		bool bDesktopMouse = false;
+		/** The gun's aim arrives on a VIRTUAL mouse the driver creates (GunCon 3 via
+		    the community driver): the physical IDs never appear on any raw device, so
+		    this player may adopt an unmatched real absolute device at runtime. */
+		bool bVirtualDriverAim = false;
 		int32 Vid = 0;
 		int32 Pid = 0;
 		FString RawInputMousePath;

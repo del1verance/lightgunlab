@@ -336,6 +336,48 @@ void FLightgunDetector::Scan(TArray<FDetectedLightgun>& OutGuns)
 			OutGuns.Add(MoveTemp(Gun));
 		}
 	}
+
+	// --- Pass 3: GunCon 3 — Namco 0B9A:0800, a vendor USB device (WinUSB via the
+	// community driver, not HID/COM), so scan every present USB devnode. Aim-only:
+	// no recoil or rumble hardware; the driver's console app feeds a VIRTUAL mouse,
+	// which the raw router adopts at runtime (Namco's IDs never appear on it).
+	{
+		int32 GunConCount = 0;
+		TArray<FString> GunConParents;
+		HDEVINFO DevInfo = SetupDiGetClassDevsW(nullptr, L"USB", nullptr, DIGCF_PRESENT | DIGCF_ALLCLASSES);
+		if (DevInfo != INVALID_HANDLE_VALUE)
+		{
+			SP_DEVINFO_DATA DevData = {};
+			DevData.cbSize = sizeof(DevData);
+			for (DWORD Index = 0; SetupDiEnumDeviceInfo(DevInfo, Index, &DevData); ++Index)
+			{
+				const FString HardwareId = ReadStringProperty(DevInfo, DevData, SPDRP_HARDWAREID).ToUpper();
+				if (!HardwareId.Contains(TEXT("VID_0B9A")) || !HardwareId.Contains(TEXT("PID_0800")) ||
+					HardwareId.Contains(TEXT("&MI_")))
+				{
+					continue; // not a GunCon 3, or a composite child rather than the device itself
+				}
+				++GunConCount;
+				GunConParents.Add(ResolveCompositeParentFromDevNode(DevData.DevInst));
+			}
+			SetupDiDestroyDeviceInfoList(DevInfo);
+		}
+
+		for (int32 Index = 0; Index < GunConCount; ++Index)
+		{
+			FDetectedLightgun Gun;
+			Gun.Model = ELightgunModel::GunCon3;
+			Gun.Vid = 0x0B9A;
+			Gun.Pid = 0x0800;
+			Gun.bRecoilCapable = false;
+			Gun.UsbCompositeParentId = GunConParents[Index];
+			Gun.DisplayName = GunConCount == 1
+				? FString(TEXT("GunCon 3 (aim only)"))
+				: FString::Printf(TEXT("GunCon 3 %c (aim only)"), static_cast<TCHAR>(TEXT('A') + Index));
+			Gun.DetectionNote = TEXT("Needs the community GunCon 3 Windows driver with its console app running (aim arrives on its virtual mouse). No recoil hardware.");
+			OutGuns.Add(MoveTemp(Gun));
+		}
+	}
 #endif // PLATFORM_WINDOWS
 
 	UE_LOG(LogLightgunLab, Log, TEXT("Lightgun scan found %d device(s)"), OutGuns.Num());

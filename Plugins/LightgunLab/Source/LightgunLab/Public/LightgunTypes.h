@@ -14,6 +14,10 @@ enum class ELightgunModel : uint8
 	Blamcon			UMETA(DisplayName = "Blamcon"),
 	RS3Reaper		UMETA(DisplayName = "Retro Shooter RS3 Reaper"),
 	Sinden			UMETA(DisplayName = "Sinden"),
+	/** Namco GunCon 3 via the community Windows driver: aim-only (no recoil or
+	    rumble hardware), and the aim arrives on the driver's VIRTUAL mouse rather
+	    than a device carrying Namco's IDs. */
+	GunCon3			UMETA(DisplayName = "GunCon 3"),
 	UnknownSerial	UMETA(DisplayName = "Unknown serial device")
 };
 

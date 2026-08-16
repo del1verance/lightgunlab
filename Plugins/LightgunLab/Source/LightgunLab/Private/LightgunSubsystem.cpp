@@ -216,6 +216,7 @@ bool ULightgunSubsystem::SelectGunForPlayer(int32 PlayerIndex, int32 Index)
 	TeardownBackend(PlayerIndex);
 	Slot.GunIndex = Index;
 	Slot.bDesktopMouse = false;
+	Slot.LastError.Reset(); // aim-only models (GunCon 3) get no backend and must not inherit a stale error
 
 	Slot.Backend = MakeRecoilBackend(Gun);
 	if (Slot.Backend.IsValid())
@@ -337,7 +338,9 @@ FString ULightgunSubsystem::GetStatusSummaryForPlayer(int32 PlayerIndex) const
 			: TEXT("No lightgun selected - playing with mouse.");
 	}
 	const FDetectedLightgun& Gun = DetectedGuns[Slot.GunIndex];
-	FString Summary = Slot.Backend.IsValid() ? Slot.Backend->GetStatusText() : Gun.DisplayName + TEXT(" (aim only)");
+	FString Summary = Slot.Backend.IsValid()
+		? Slot.Backend->GetStatusText()
+		: (Gun.DisplayName.Contains(TEXT("aim only")) ? Gun.DisplayName : Gun.DisplayName + TEXT(" (aim only)"));
 	if (!Gun.DetectionNote.IsEmpty())
 	{
 		Summary += TEXT("\n") + Gun.DetectionNote;
@@ -425,6 +428,9 @@ void ULightgunSubsystem::PushRouterBindings()
 			Binding.Pid = Gun.Pid;
 			Binding.RawInputMousePath = Gun.RawInputMousePath;
 			Binding.UsbCompositeParentId = Gun.UsbCompositeParentId;
+			// GunCon 3 aim arrives on the community driver's virtual mouse - Namco's
+			// IDs never appear on it, so this player adopts the unmatched device.
+			Binding.bVirtualDriverAim = Gun.Model == ELightgunModel::GunCon3;
 		}
 		RawRouter->SetPlayerBinding(Player, Binding);
 	}

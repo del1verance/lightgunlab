@@ -302,7 +302,7 @@ public:
 			else
 			{
 				Summary += FString::Printf(TEXT("P%d: %d mouse / %d kbd%s"), Player + 1, Mice, Keyboards,
-					Runtime[Player].bAdoptedOrphan ? TEXT(" (adopted injected aim)") : TEXT(""));
+					Runtime[Player].bAdoptedOrphan ? TEXT(" (adopted unmatched aim source)") : TEXT(""));
 			}
 		}
 		return Summary;
@@ -533,24 +533,59 @@ private:
 
 		if (bAbsolute)
 		{
-			// A DEVICE-LESS absolute stream (hDevice null = SendInput) is a vendor
-			// app injecting aim for its gun: adopt it for the first gun player whose
-			// own device has stayed silent, so that gun still tracks. Real hardware
-			// we couldn't match is NOT adopted - an unselected spare gun on the desk
-			// must never steer a player it wasn't assigned to.
+			auto CanAdopt = [this](int32 Player)
+			{
+				const FPlayerBinding& B = Bindings[Player];
+				return B.bActive && !B.bDesktopMouse &&
+					!Runtime[Player].bMappedDeviceProducedAim && !Runtime[Player].bAdoptedOrphan;
+			};
+			auto Adopt = [this](int32 Player, HANDLE AdoptedDevice)
+			{
+				Runtime[Player].bAdoptedOrphan = true;
+				if (AdoptedDevice)
+				{
+					MouseToPlayer.Add(AdoptedDevice, Player);
+					UE_LOG(LogLightgunLab, Log, TEXT("Raw input: adopted virtual-driver mouse %p for P%d"), AdoptedDevice, Player + 1);
+				}
+				else
+				{
+					NullAbsolutePlayer = Player;
+					UE_LOG(LogLightgunLab, Log, TEXT("Raw input: adopted injected (device-less) absolute aim for P%d"), Player + 1);
+				}
+				return Player;
+			};
+
 			if (Device)
 			{
+				// A REAL absolute device we couldn't match by path/parent/VIDPID.
+				// Only a player whose gun aims through a virtual driver mouse
+				// (GunCon 3) may adopt it - a spare gun on the desk must never
+				// steer a player it wasn't assigned to.
+				for (int32 Player = 0; Player < NumPlayers; ++Player)
+				{
+					if (Bindings[Player].bVirtualDriverAim && CanAdopt(Player))
+					{
+						return Adopt(Player, Device);
+					}
+				}
 				return INDEX_NONE;
+			}
+
+			// DEVICE-LESS (SendInput-injected) aim: a vendor app moving the cursor
+			// for its gun. Prefer non-virtual-driver players (a virtual-driver gun's
+			// aim comes as a real device), then anyone still aimless.
+			for (int32 Player = 0; Player < NumPlayers; ++Player)
+			{
+				if (!Bindings[Player].bVirtualDriverAim && CanAdopt(Player))
+				{
+					return Adopt(Player, nullptr);
+				}
 			}
 			for (int32 Player = 0; Player < NumPlayers; ++Player)
 			{
-				const FPlayerBinding& B = Bindings[Player];
-				if (B.bActive && !B.bDesktopMouse && !Runtime[Player].bMappedDeviceProducedAim && !Runtime[Player].bAdoptedOrphan)
+				if (CanAdopt(Player))
 				{
-					Runtime[Player].bAdoptedOrphan = true;
-					NullAbsolutePlayer = Player;
-					UE_LOG(LogLightgunLab, Log, TEXT("Raw input: adopted injected (device-less) absolute aim for P%d"), Player + 1);
-					return Player;
+					return Adopt(Player, nullptr);
 				}
 			}
 			return INDEX_NONE;
