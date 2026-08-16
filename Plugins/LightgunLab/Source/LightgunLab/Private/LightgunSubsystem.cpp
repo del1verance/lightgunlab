@@ -7,6 +7,7 @@
 #include "MameOutputServer.h"
 #include "MameWindowBroadcaster.h"
 #include "LightgunRawInput.h"
+#include "LightgunDeviceWatcher.h"
 #include "SindenBorderWidget.h"
 #include "LightgunStartupPanel.h"
 #include "LightgunOptionsPanel.h"
@@ -31,6 +32,32 @@ namespace
 			PC->SetInputMode(InputMode);
 		}
 	}
+
+	/** One physical device across two scans, robust to index churn: the USB composite
+	    parent is the strongest identity, then the COM port (serial guns keep it across
+	    rescans), then the raw mouse path (Sinden), then plain VID/PID. */
+	bool IsSamePhysicalGun(const FDetectedLightgun& A, const FDetectedLightgun& B)
+	{
+		if (A.Model != B.Model)
+		{
+			return false;
+		}
+		if (!A.UsbCompositeParentId.IsEmpty() && !B.UsbCompositeParentId.IsEmpty())
+		{
+			return A.UsbCompositeParentId == B.UsbCompositeParentId;
+		}
+		if (!A.ComPort.IsEmpty() || !B.ComPort.IsEmpty())
+		{
+			return A.ComPort == B.ComPort;
+		}
+		if (!A.RawInputMousePath.IsEmpty() && !B.RawInputMousePath.IsEmpty())
+		{
+			return A.RawInputMousePath == B.RawInputMousePath;
+		}
+		return A.Vid == B.Vid && A.Pid == B.Pid;
+	}
+
+	constexpr double HotRescanDebounceSeconds = 0.75;
 }
 
 // Defined here so TSharedPtr members see complete backend/server types.
@@ -47,6 +74,27 @@ void ULightgunSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		RestoreSavedSelection();
 	}
 	StartOutputServersIfEnabled();
+
+	// Hot-plug: watch USB topology for the whole session so guns plugged in (or
+	// yanked) after launch update the list, remap slots, and broadcast events.
+	if (FApp::CanEverRender())
+	{
+		DeviceWatcher = FLightgunDeviceWatcher::Create();
+		if (DeviceWatcher.IsValid())
+		{
+			TWeakObjectPtr<ULightgunSubsystem> WeakThis(this);
+			if (!DeviceWatcher->Start([WeakThis]()
+			{
+				if (ULightgunSubsystem* Self = WeakThis.Get())
+				{
+					Self->OnDeviceTopologySignal();
+				}
+			}))
+			{
+				DeviceWatcher.Reset();
+			}
+		}
+	}
 
 	// PostLoadMapWithWorld never fires for PIE worlds (they're duplicated, not
 	// loaded), so poll until a game world has begun play and has a viewport.
@@ -79,6 +127,12 @@ void ULightgunSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 void ULightgunSubsystem::Deinitialize()
 {
 	FTSTicker::GetCoreTicker().RemoveTicker(StartupPollHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(HotRescanHandle);
+	if (DeviceWatcher.IsValid())
+	{
+		DeviceWatcher->Stop();
+		DeviceWatcher.Reset();
+	}
 	if (RawRouter.IsValid())
 	{
 		RawRouter->Stop();
@@ -97,7 +151,147 @@ void ULightgunSubsystem::Deinitialize()
 
 void ULightgunSubsystem::ScanForLightguns()
 {
+	PerformHotRescan();
+}
+
+void ULightgunSubsystem::OnDeviceTopologySignal()
+{
+	// Windows announces one plug event as a burst (one per interface), and drivers
+	// can still be settling - rescan only after the burst has been quiet a moment.
+	LastDeviceChangeTime = FPlatformTime::Seconds();
+	if (HotRescanHandle.IsValid())
+	{
+		return; // a debounce tick is already waiting
+	}
+	TWeakObjectPtr<ULightgunSubsystem> WeakThis(this);
+	HotRescanHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([WeakThis](float)
+	{
+		ULightgunSubsystem* Self = WeakThis.Get();
+		if (!Self)
+		{
+			return false;
+		}
+		if (FPlatformTime::Seconds() - Self->LastDeviceChangeTime < HotRescanDebounceSeconds)
+		{
+			return true; // still inside the burst - keep waiting
+		}
+		Self->HotRescanHandle.Reset();
+		Self->PerformHotRescan();
+		return false;
+	}), 0.25f);
+}
+
+void ULightgunSubsystem::PerformHotRescan()
+{
+	const TArray<FDetectedLightgun> OldGuns = DetectedGuns;
+	struct FSlotIdentity
+	{
+		bool bHadGun = false;
+		FDetectedLightgun Gun;
+	};
+	FSlotIdentity OldSlots[LightgunMaxPlayers];
+	for (int32 Player = 0; Player < LightgunMaxPlayers; ++Player)
+	{
+		if (OldGuns.IsValidIndex(Slots[Player].GunIndex))
+		{
+			OldSlots[Player].bHadGun = true;
+			OldSlots[Player].Gun = OldGuns[Slots[Player].GunIndex];
+		}
+	}
+
 	FLightgunDetector::Scan(DetectedGuns);
+
+	// Re-seat every slot on its same PHYSICAL gun (indices shift across scans).
+	bool bAnyDisconnect = false;
+	for (int32 Player = 0; Player < LightgunMaxPlayers; ++Player)
+	{
+		if (!OldSlots[Player].bHadGun)
+		{
+			continue;
+		}
+		const int32 NewIndex = DetectedGuns.IndexOfByPredicate([&OldSlots, Player](const FDetectedLightgun& Gun)
+		{
+			return IsSamePhysicalGun(OldSlots[Player].Gun, Gun);
+		});
+		if (NewIndex != INDEX_NONE)
+		{
+			Slots[Player].GunIndex = NewIndex;
+			// Same gun, same port - but an unplug/replug inside one debounce window
+			// leaves a serial backend holding a dead COM handle. Rebuild it quietly.
+			const FDetectedLightgun& Gun = DetectedGuns[NewIndex];
+			if (!Gun.ComPort.IsEmpty() && Slots[Player].Backend.IsValid() && !Slots[Player].Backend->IsHealthy())
+			{
+				UE_LOG(LogLightgunLab, Log, TEXT("P%d backend unhealthy after replug - reopening %s"), Player + 1, *Gun.ComPort);
+				const bool bWasInControl = Slots[Player].bInControl;
+				TeardownBackend(Player);
+				Slots[Player].Backend = MakeRecoilBackend(Gun);
+				FString Error;
+				if (Slots[Player].Backend.IsValid() && !Slots[Player].Backend->Init(Gun, *GetDefault<ULightgunSettings>(), Error))
+				{
+					Slots[Player].LastError = Error;
+					Slots[Player].Backend.Reset();
+				}
+				else if (bWasInControl)
+				{
+					BeginGameControlForPlayer(Player);
+				}
+			}
+		}
+		else
+		{
+			// The player's gun is gone. Tear down, free the seat, tell the game -
+			// this is the hook a host uses to pause and re-raise its gun config.
+			UE_LOG(LogLightgunLab, Log, TEXT("P%d gun disconnected: %s"), Player + 1, *OldSlots[Player].Gun.DisplayName);
+			TeardownBackend(Player);
+			Slots[Player].GunIndex = INDEX_NONE;
+			Slots[Player].LastError = TEXT("Gun disconnected.");
+			bAnyDisconnect = true;
+			OnGunDisconnected.Broadcast(OldSlots[Player].Gun, Player);
+		}
+	}
+
+	// Unassigned guns that vanished, then arrivals.
+	for (const FDetectedLightgun& Old : OldGuns)
+	{
+		const bool bStillPresent = DetectedGuns.ContainsByPredicate([&Old](const FDetectedLightgun& Gun) { return IsSamePhysicalGun(Old, Gun); });
+		const bool bWasAssigned = (OldSlots[0].bHadGun && IsSamePhysicalGun(OldSlots[0].Gun, Old)) ||
+			(OldSlots[1].bHadGun && IsSamePhysicalGun(OldSlots[1].Gun, Old));
+		if (!bStillPresent && !bWasAssigned)
+		{
+			OnGunDisconnected.Broadcast(Old, INDEX_NONE);
+		}
+	}
+	int32 NewArrivals = 0;
+	for (const FDetectedLightgun& Gun : DetectedGuns)
+	{
+		const bool bWasPresent = OldGuns.ContainsByPredicate([&Gun](const FDetectedLightgun& Old) { return IsSamePhysicalGun(Old, Gun); });
+		if (!bWasPresent)
+		{
+			UE_LOG(LogLightgunLab, Log, TEXT("Gun connected: %s"), *Gun.DisplayName);
+			++NewArrivals;
+			OnGunConnected.Broadcast(Gun);
+		}
+	}
+
+	if (bAnyDisconnect)
+	{
+		UpdateBorderForSelections();
+	}
+	PushRouterBindings();
+
+	// First gun plugged into a gunless session: bring the picker up on its own
+	// (host games opt out with bShowStartupPanel=false and drive OnGunConnected).
+	if (NewArrivals > 0 && FApp::CanEverRender() && GetDefault<ULightgunSettings>()->bShowStartupPanel && bStartupPanelShown)
+	{
+		const bool bAnyGunSelected = HasActiveGunForPlayer(0) || (IsTwoPlayerMode() && HasActiveGunForPlayer(1));
+		const bool bPanelShowing = StartupPanel && StartupPanel->IsInViewport();
+		if (!bAnyGunSelected && !bPanelShowing)
+		{
+			ShowStartupPanel();
+		}
+	}
+
+	OnDetectedGunsChanged.Broadcast();
 	OnStatusChanged.Broadcast();
 }
 

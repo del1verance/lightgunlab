@@ -69,6 +69,9 @@ protected:
 	UFUNCTION()
 	void OnConfirmTwoPlayerClicked();
 
+	UFUNCTION()
+	void OnDetectedGunsHotChanged();
+
 private:
 	void Populate();
 	void ApplyComboSelection();

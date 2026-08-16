@@ -202,6 +202,12 @@ void ULightgunStartupPanel::NativeOnInitialized()
 	TwoPlayerNote->SetAutoWrapText(true);
 	AddTwoPlayerRow(TwoPlayerNote, 12.f);
 
+	// Hot-plug: the detected list can change under us; repopulate live.
+	if (ULightgunSubsystem* Lightgun = GetLightgun())
+	{
+		Lightgun->OnDetectedGunsChanged.AddDynamic(this, &ULightgunStartupPanel::OnDetectedGunsHotChanged);
+	}
+
 	Populate();
 
 	// Two (or more) real guns attached = a two-player rig: open in 2P with each
@@ -253,6 +259,76 @@ void ULightgunStartupPanel::SetMode(bool bTwoPlayers)
 		Populate();
 	}
 	UpdateBorderForPicks();
+}
+
+void ULightgunStartupPanel::OnDetectedGunsHotChanged()
+{
+	ULightgunSubsystem* Lightgun = GetLightgun();
+	if (!Lightgun)
+	{
+		return;
+	}
+	const TArray<FDetectedLightgun>& Guns = Lightgun->GetDetectedGuns();
+	auto FindGunByName = [&Guns](const FString& Name) -> int32
+	{
+		return Name.IsEmpty() ? INDEX_NONE
+			: Guns.IndexOfByPredicate([&Name](const FDetectedLightgun& Gun) { return Gun.DisplayName == Name; });
+	};
+
+	// Capture the current picks by identity before anything rebuilds - indices
+	// into the old list mean nothing after a rescan. Option text == gun DisplayName.
+	const int32 OldOneP = GunCombo ? GunCombo->GetSelectedIndex() : INDEX_NONE;
+	FString OnePlayerPickName;
+	if (GunCombo && OldOneP != INDEX_NONE && OldOneP != MouseOnlyComboIndex)
+	{
+		OnePlayerPickName = GunCombo->GetSelectedOption();
+	}
+	FString SeatPickName[2];
+	bool bSeatWasMouse[2] = { false, false };
+	for (int32 Player = 0; Player < 2; ++Player)
+	{
+		bSeatWasMouse[Player] = IsMousePicked(Player);
+		if (!bSeatWasMouse[Player] && PlayerCombos[Player] && PlayerCombos[Player]->GetSelectedIndex() != INDEX_NONE)
+		{
+			SeatPickName[Player] = PlayerCombos[Player]->GetSelectedOption();
+		}
+	}
+
+	// Rebuild the 1P list (fresh defaults), then restore a surviving gun pick.
+	Populate();
+	const int32 RestoredGun = FindGunByName(OnePlayerPickName);
+	if (RestoredGun != INDEX_NONE && GunCombo)
+	{
+		const int32 ComboIndex = ComboToGunIndex.IndexOfByKey(RestoredGun);
+		if (ComboIndex != INDEX_NONE)
+		{
+			bSuppressComboEvents = true;
+			GunCombo->SetSelectedIndex(ComboIndex);
+			bSuppressComboEvents = false;
+		}
+	}
+
+	if (Lightgun->IsTwoPlayerMode())
+	{
+		bSuppressComboEvents = true;
+		const int32 Seat0 = FindGunByName(SeatPickName[0]);
+		const int32 Seat1 = FindGunByName(SeatPickName[1]);
+		if (Seat0 == INDEX_NONE && Seat1 == INDEX_NONE && !bSeatWasMouse[0] && !bSeatWasMouse[1])
+		{
+			bSuppressComboEvents = false;
+			PopulateTwoPlayer(false); // nothing survived - hint-based defaults
+		}
+		else
+		{
+			RebuildPlayerCombo(0, Seat0, bSeatWasMouse[0]);
+			RebuildPlayerCombo(1, Seat1 == Seat0 && Seat1 != INDEX_NONE ? INDEX_NONE : Seat1, bSeatWasMouse[1]);
+			bSuppressComboEvents = false;
+		}
+		RefreshTwoPlayerStatus();
+	}
+	UpdateTestButtonEnableStates();
+	UpdateBorderForPicks();
+	ShowBorderIfAnySindenDetected(); // a freshly plugged Sinden pops the border to aim with
 }
 
 void ULightgunStartupPanel::OnOnePlayerClicked()

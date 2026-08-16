@@ -12,6 +12,7 @@ class IRecoilBackend;
 class FMameOutputServer;
 class FMameWindowBroadcaster;
 class FLightgunRawInputRouter;
+class FLightgunDeviceWatcher;
 class FSindenSharedConnection;
 class ULightgunBorderWidget;
 class ULightgunStartupPanel;
@@ -19,6 +20,8 @@ class ULightgunOptionsPanel;
 class ULightgunCalibrationScreen;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLightgunStatusChanged);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLightgunConnected, FDetectedLightgun, Gun);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLightgunDisconnected, FDetectedLightgun, Gun, int32, PlayerIndex);
 
 /**
  * Game-facing lightgun API. The weapon code only reports what happened
@@ -239,6 +242,22 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Lightgun")
 	FOnLightgunStatusChanged OnStatusChanged;
 
+	/** The detected-guns list changed from a hot-plug rescan (arrival/removal or Rescan). UI listing guns should repopulate. */
+	UPROPERTY(BlueprintAssignable, Category = "Lightgun")
+	FOnLightgunStatusChanged OnDetectedGunsChanged;
+
+	/** A gun was plugged in while running (fires per gun, after the debounced rescan). */
+	UPROPERTY(BlueprintAssignable, Category = "Lightgun")
+	FOnLightgunConnected OnGunConnected;
+
+	/**
+	 * A gun was unplugged while running. PlayerIndex is the slot it was assigned to,
+	 * or -1 if it wasn't in play. The slot's backend is already torn down when this
+	 * fires - a host game typically pauses and re-shows its gun configuration here.
+	 */
+	UPROPERTY(BlueprintAssignable, Category = "Lightgun")
+	FOnLightgunDisconnected OnGunDisconnected;
+
 private:
 	struct FPlayerSlot
 	{
@@ -259,6 +278,8 @@ private:
 	void PersistSlotPrefs(int32 PlayerIndex);
 	void UpdateBorderForSelections();
 	void PushRouterBindings();
+	void OnDeviceTopologySignal();
+	void PerformHotRescan();
 	FString PlayerPrefixed(int32 PlayerIndex, const FString& ShortName) const;
 	bool IsValidPlayer(int32 PlayerIndex) const { return PlayerIndex >= 0 && PlayerIndex < LightgunMaxPlayers; }
 
@@ -269,6 +290,9 @@ private:
 	TSharedPtr<FMameOutputServer> TcpOutputs;
 	TSharedPtr<FMameWindowBroadcaster> WindowOutputs;
 	TSharedPtr<FLightgunRawInputRouter> RawRouter;
+	TSharedPtr<FLightgunDeviceWatcher> DeviceWatcher;
+	FTSTicker::FDelegateHandle HotRescanHandle;
+	double LastDeviceChangeTime = 0.0;
 
 	/** Pins the single process-wide Sinden TCP connection for the whole session so
 	    backend churn (reselects, swaps, mode switches) never closes the socket. */
