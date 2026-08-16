@@ -4,6 +4,8 @@ Native lightgun support for Unreal Engine 5.8 on Windows: auto-detection, **ammo
 
 `Plugins/LightgunLab` is the deliverable — drop it into any UE 5.8 project. The surrounding `LightgunLab` project is a minimal test bed.
 
+**Full documentation lives in the [wiki](https://github.com/del1verance/lightgunlab/wiki)** — demo guide, per-gun setup, node-by-node Blueprint walkthroughs, troubleshooting, API reference.
+
 ## Supported guns
 
 | Gun | Aim | Recoil control | Protocol source |
@@ -58,7 +60,7 @@ Players with an existing rig point their `lightgunlab.ini` at the game and every
 ## Requirements
 
 - Unreal Engine **5.8** (built against 5.8.1), Windows 64-bit
-- For Sinden: the Sinden software **V2.08a or newer** running with its Recoil Server started (`Lightgun.exe tcpserver`, or the checkbox on the recoil outputs tab)
+- For Sinden: the Sinden software **V2.08a or newer** running with its Recoil Server started (the autostart checkbox on the recoil outputs tab, or its Start Recoil Server button — **never** the `tcpserver` launch argument; see Known issues)
 - For serial guns: nothing — plug in and go (RS3 recoil additionally needs its 24 V PSU)
 - Game should run **borderless fullscreen** (required for the Sinden border overlay; correct for cursor aim everywhere)
 
