@@ -62,6 +62,10 @@ Players with an existing rig point their `lightgunlab.ini` at the game and every
 - For serial guns: nothing — plug in and go (RS3 recoil additionally needs its 24 V PSU)
 - Game should run **borderless fullscreen** (required for the Sinden border overlay; correct for cursor aim everywhere)
 
+## Try it without Unreal
+
+Every release ships **`LightgunLab-Demo-<ver>-Win64.zip`** — the aim test range as a standalone Windows app. Unzip, run `LightgunLab.exe`, plug in your gun(s): detection → picker (1P/2P) → the range. Borderless fullscreen recommended (required for Sinden). Logging is enabled even though it's a Shipping build, so `%LOCALAPPDATA%\LightgunLab\Saved\Logs\LightgunLab.log` carries the full detection/routing story — attach it to any hardware test report.
+
 ## Install
 
 **Into your own project:** copy `Plugins/LightgunLab` into `<YourProject>/Plugins/`, enable it, build. All UI panels are C++-built with zero content dependencies and can be subclassed in Blueprint for reskinning. Host games usually set `bShowRangeOnConfirm=false` so confirming the picker hands straight back to the game (control seizure and raw aim routing still happen; the aim test range stays reachable via `ShowCalibrationScreen()`) — the default keeps the range as the home screen, which is what this test bed wants.
